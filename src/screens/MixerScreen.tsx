@@ -1,137 +1,71 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, Modal } from 'react-native';
-import Slider from '@react-native-community/slider';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useAudio } from '../context/AudioContext';
-import { SOUNDS } from '../data/sounds';
+import { getAllCategories, getSoundsByCategory } from '../data/sounds';
+import SoundCard from '../components/SoundCard';
+import PresetBar from '../components/PresetBar';
+import TimerControl from '../components/TimerControl';
+import FloatingPlayButton from '../components/FloatingPlayButton';
 
 export default function MixerScreen() {
-  const { playingSounds, toggleSound, setVolume, stopAll, setTimer, timer, saveScene } = useAudio();
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [sceneName, setSceneName] = useState('');
-
-  const isPlaying = (id: string) => playingSounds.some(s => s.id === id);
-  const getVolume = (id: string) => playingSounds.find(s => s.id === id)?.volume || 0.5;
-
-  const handleSave = () => {
-    if (sceneName.trim()) {
-      saveScene(sceneName);
-      setSceneName('');
-      setShowSaveModal(false);
-    }
-  };
+  const [selectedCategory, setSelectedCategory] = useState('nature');
+  const categories = getAllCategories();
+  const sounds = getSoundsByCategory(selectedCategory);
+  const { playingSounds, stopAll } = useAudio();
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Sound Mixer</Text>
-        <View style={styles.controls}>
-          <TouchableOpacity style={styles.smallButton} onPress={stopAll}>
-            <Text style={styles.smallButtonText}>⏹ Stop All</Text>
-          </TouchableOpacity>
+        <Text style={styles.title}>Mixer</Text>
+        <View style={styles.headerButtons}>
           {playingSounds.length > 0 && (
-            <TouchableOpacity style={styles.smallButton} onPress={() => setShowSaveModal(true)}>
-              <Text style={styles.smallButtonText}>💾 Save</Text>
+            <TouchableOpacity style={styles.stopButton} onPress={stopAll}>
+              <Text style={styles.stopButtonText}>⏹ Stop All</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      <View style={styles.timerSection}>
-        <Text style={styles.sectionTitle}>⏱ Timer</Text>
-        <View style={styles.timerButtons}>
-          {[15, 30, 45, 60].map(min => (
-            <TouchableOpacity
-              key={min}
-              style={[styles.timerButton, timer === min && styles.timerButtonActive]}
-              onPress={() => setTimer(min)}
-            >
-              <Text style={styles.timerButtonText}>{min}m</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+      <TimerControl />
+      <PresetBar />
 
-      <FlatList
-        data={SOUNDS}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => {
-          const playing = isPlaying(item.id);
-          return (
-            <View style={styles.soundItem}>
-              <TouchableOpacity
-                style={[styles.soundButton, playing && styles.soundButtonActive]}
-                onPress={() => toggleSound(item.id)}
-              >
-                <Text style={styles.soundEmoji}>{item.emoji}</Text>
-                <Text style={styles.soundName}>{item.name}</Text>
-              </TouchableOpacity>
-              {playing && (
-                <Slider
-                  style={styles.slider}
-                  value={getVolume(item.id)}
-                  onValueChange={(v: number) => setVolume(item.id, v)}
-                  minimumValue={0}
-                  maximumValue={1}
-                  minimumTrackTintColor="#6b7fa8"
-                  maximumTrackTintColor="#2a3447"
-                />
-              )}
-            </View>
-          );
-        }}
-      />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+        {categories.map(cat => (
+          <TouchableOpacity
+            key={cat.id}
+            style={[styles.categoryBtn, selectedCategory === cat.id && styles.categoryBtnActive]}
+            onPress={() => setSelectedCategory(cat.id)}
+          >
+            <Text style={[styles.categoryText, selectedCategory === cat.id && styles.categoryTextActive]}>
+              {cat.nameEn || cat.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
-      <Modal visible={showSaveModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Save Scene</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Scene name"
-              placeholderTextColor="#666"
-              value={sceneName}
-              onChangeText={setSceneName}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalButton} onPress={() => setShowSaveModal(false)}>
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.modalButtonPrimary]} onPress={handleSave}>
-                <Text style={styles.modalButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ScrollView style={styles.soundsScroll} contentContainerStyle={styles.soundsGrid}>
+        {sounds.map(sound => (
+          <SoundCard key={sound.id} sound={sound} isPlaying={playingSounds.some(p => p.id === sound.id)} />
+        ))}
+      </ScrollView>
+
+      {playingSounds.length > 0 && <FloatingPlayButton />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0e27', padding: 20 },
-  header: { marginTop: 60, marginBottom: 20 },
-  title: { fontSize: 32, color: '#fff', fontWeight: 'bold', marginBottom: 15 },
-  controls: { flexDirection: 'row', gap: 10 },
-  smallButton: { backgroundColor: '#3b4a6b', padding: 10, borderRadius: 8 },
-  smallButtonText: { color: '#fff', fontSize: 14 },
-  timerSection: { marginBottom: 20 },
-  sectionTitle: { fontSize: 18, color: '#fff', marginBottom: 10 },
-  timerButtons: { flexDirection: 'row', gap: 10 },
-  timerButton: { flex: 1, backgroundColor: '#1a2332', padding: 12, borderRadius: 8 },
-  timerButtonActive: { backgroundColor: '#3b4a6b' },
-  timerButtonText: { color: '#fff', textAlign: 'center' },
-  soundItem: { marginBottom: 15 },
-  soundButton: { backgroundColor: '#1a2332', padding: 15, borderRadius: 12, flexDirection: 'row', alignItems: 'center' },
-  soundButtonActive: { backgroundColor: '#2a3447' },
-  soundEmoji: { fontSize: 24, marginRight: 12 },
-  soundName: { color: '#fff', fontSize: 16 },
-  slider: { width: '100%', height: 40 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#1a2332', borderRadius: 12, padding: 20 },
-  modalTitle: { fontSize: 20, color: '#fff', marginBottom: 15 },
-  input: { backgroundColor: '#0a0e27', color: '#fff', padding: 12, borderRadius: 8, marginBottom: 15 },
-  modalButtons: { flexDirection: 'row', gap: 10 },
-  modalButton: { flex: 1, backgroundColor: '#3b4a6b', padding: 12, borderRadius: 8 },
-  modalButtonPrimary: { backgroundColor: '#5b6fa8' },
-  modalButtonText: { color: '#fff', textAlign: 'center' },
+  container: { flex: 1, backgroundColor: '#0a0e27' },
+  header: { padding: 20, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  title: { fontSize: 32, fontWeight: 'bold', color: '#fff' },
+  headerButtons: { flexDirection: 'row', gap: 10 },
+  stopButton: { backgroundColor: '#d32f2f', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  stopButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  categoryScroll: { maxHeight: 50, marginHorizontal: 20, marginTop: 10 },
+  categoryBtn: { paddingHorizontal: 20, paddingVertical: 10, marginRight: 10, borderRadius: 20, backgroundColor: '#1a2332' },
+  categoryBtnActive: { backgroundColor: '#3b5998' },
+  categoryText: { color: '#6b7fa8', fontSize: 14 },
+  categoryTextActive: { color: '#fff', fontWeight: '600' },
+  soundsScroll: { flex: 1, marginTop: 20 },
+  soundsGrid: { padding: 20, paddingTop: 10, paddingBottom: 100 },
 });

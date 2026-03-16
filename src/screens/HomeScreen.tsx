@@ -1,51 +1,55 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAudio } from '../context/AudioContext';
+import { getAllCategories, getSoundsByCategory } from '../data/sounds';
+import SoundCard from '../components/SoundCard';
 
-export default function HomeScreen({ navigation }: any) {
-  const { scenes, loadScene } = useAudio();
+export default function HomeScreen() {
+  const [selectedCategory, setSelectedCategory] = useState('nature');
+  const categories = getAllCategories();
+  const sounds = getSoundsByCategory(selectedCategory);
+  const { playingSounds } = useAudio();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Nocta</Text>
-      <Text style={styles.subtitle}>Calm Your Night</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Nocta</Text>
+        <Text style={styles.subtitle}>Sleep Sounds</Text>
+      </View>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate('Mixer')}
-      >
-        <Text style={styles.buttonText}>🎵 Start Mixing</Text>
-      </TouchableOpacity>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+        {categories.map(cat => (
+          <TouchableOpacity
+            key={cat.id}
+            style={[styles.categoryBtn, selectedCategory === cat.id && styles.categoryBtnActive]}
+            onPress={() => setSelectedCategory(cat.id)}
+          >
+            <Text style={[styles.categoryText, selectedCategory === cat.id && styles.categoryTextActive]}>
+              {cat.nameEn || cat.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
-      {scenes.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Saved Scenes</Text>
-          <FlatList
-            data={scenes}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.sceneItem}
-                onPress={() => loadScene(item)}
-              >
-                <Text style={styles.sceneName}>{item.name}</Text>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      )}
+      <ScrollView style={styles.soundsScroll} contentContainerStyle={styles.soundsGrid}>
+        {sounds.map(sound => (
+          <SoundCard key={sound.id} sound={sound} isPlaying={playingSounds.some(p => p.id === sound.id)} />
+        ))}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0e27', padding: 20 },
-  title: { fontSize: 48, color: '#fff', fontWeight: 'bold', marginTop: 60 },
-  subtitle: { fontSize: 18, color: '#8b9dc3', marginBottom: 40 },
-  button: { backgroundColor: '#3b4a6b', padding: 20, borderRadius: 12, marginBottom: 20 },
-  buttonText: { color: '#fff', fontSize: 18, textAlign: 'center' },
-  section: { marginTop: 30 },
-  sectionTitle: { fontSize: 20, color: '#fff', marginBottom: 15 },
-  sceneItem: { backgroundColor: '#1a2332', padding: 15, borderRadius: 8, marginBottom: 10 },
-  sceneName: { color: '#fff', fontSize: 16 },
+  container: { flex: 1, backgroundColor: '#0a0e27' },
+  header: { padding: 20, paddingTop: 60 },
+  title: { fontSize: 32, fontWeight: 'bold', color: '#fff' },
+  subtitle: { fontSize: 16, color: '#6b7fa8', marginTop: 4 },
+  categoryScroll: { maxHeight: 50, marginHorizontal: 20 },
+  categoryBtn: { paddingHorizontal: 20, paddingVertical: 10, marginRight: 10, borderRadius: 20, backgroundColor: '#1a2332' },
+  categoryBtnActive: { backgroundColor: '#3b5998' },
+  categoryText: { color: '#6b7fa8', fontSize: 14 },
+  categoryTextActive: { color: '#fff', fontWeight: '600' },
+  soundsScroll: { flex: 1, marginTop: 20 },
+  soundsGrid: { padding: 20, paddingTop: 10 },
 });

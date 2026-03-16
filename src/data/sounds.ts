@@ -1,14 +1,16 @@
-import { Sound } from '../types';
+import { SoundsManifest } from '../types';
+import soundsManifest from './sounds_remote.json';
 
-export const SOUNDS: Sound[] = [
-  { id: 'rain', name: 'Rain', emoji: '🌧', type: 'nature', file: null },
-  { id: 'ocean', name: 'Ocean', emoji: '🌊', type: 'nature', file: null },
-  { id: 'forest', name: 'Forest', emoji: '🌲', type: 'nature', file: null },
-  { id: 'fire', name: 'Fire', emoji: '🔥', type: 'nature', file: null },
-  { id: 'wind', name: 'Wind', emoji: '🍃', type: 'nature', file: null },
-  { id: 'white', name: 'White Noise', emoji: '⚪', type: 'white', file: null },
-  { id: 'pink', name: 'Pink Noise', emoji: '🩷', type: 'white', file: null },
-  { id: 'brown', name: 'Brown Noise', emoji: '🟤', type: 'white', file: null },
-  { id: 'cafe', name: 'Cafe', emoji: '☕', type: 'ambient', file: null },
-  { id: 'train', name: 'Train', emoji: '🚆', type: 'ambient', file: null },
-];
+export const SOUNDS_MANIFEST: SoundsManifest = soundsManifest as SoundsManifest;
+
+export const getSoundsByCategory = (categoryId: string) => {
+  return SOUNDS_MANIFEST.sounds.filter(s => s.category === categoryId && s.isVisible !== false);
+};
+
+export const getAllCategories = () => {
+  return SOUNDS_MANIFEST.categories.sort((a, b) => a.order - b.order);
+};
+
+export const getSoundById = (id: string) => {
+  return SOUNDS_MANIFEST.sounds.find(s => s.id === id);
+};

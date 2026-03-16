@@ -1,25 +1,70 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
-import { PlayingSound, Scene } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PlayingSound, Preset, FavoriteSound } from '../types';
+import { getSoundById } from '../data/sounds';
 
 interface AudioContextType {
   playingSounds: PlayingSound[];
-  scenes: Scene[];
+  presets: Preset[];
+  currentPresetIndex: number;
+  favorites: FavoriteSound[];
   timer: number | null;
+  timerRemaining: number | null;
   toggleSound: (soundId: string) => Promise<void>;
-  setVolume: (soundId: string, volume: number) => void;
-  stopAll: () => void;
+  setVolume: (soundId: string, volume: number) => Promise<void>;
+  stopAll: () => Promise<void>;
   setTimer: (minutes: number | null) => void;
-  saveScene: (name: string) => void;
-  loadScene: (scene: Scene) => void;
+  saveToPreset: (presetIndex: number, soundIds: string[]) => Promise<void>;
+  loadPreset: (presetIndex: number) => Promise<void>;
+  setCurrentPreset: (index: number) => void;
+  toggleFavorite: (soundId: string) => Promise<void>;
+  isFavorite: (soundId: string) => boolean;
+  getVolume: (soundId: string) => number;
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
+const STORAGE_KEYS = {
+  VOLUMES: '@nocta_volumes',
+  PRESETS: '@nocta_presets',
+  FAVORITES: '@nocta_favorites',
+  RECENT: '@nocta_recent',
+};
+
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [playingSounds, setPlayingSounds] = useState<PlayingSound[]>([]);
-  const [scenes, setScenes] = useState<Scene[]>([]);
+  const [presets, setPresets] = useState<Preset[]>([
+    { id: '1', name: 'Preset 1', sounds: [] },
+    { id: '2', name: 'Preset 2', sounds: [] },
+    { id: '3', name: 'Preset 3', sounds: [] },
+  ]);
+  const [currentPresetIndex, setCurrentPresetIndex] = useState(0);
+  const [favorites, setFavorites] = useState<FavoriteSound[]>([]);
   const [timer, setTimerState] = useState<number | null>(null);
+  const [timerRemaining, setTimerRemaining] = useState<number | null>(null);
+  const [volumes, setVolumes] = useState<Record<string, number>>({});
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    loadPersistedData();
+    Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: true });
+  }, []);
+
+  const loadPersistedData = async () => {
+    try {
+      const [volumesData, presetsData, favoritesData] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.VOLUMES),
+        AsyncStorage.getItem(STORAGE_KEYS.PRESETS),
+        AsyncStorage.getItem(STORAGE_KEYS.FAVORITES),
+      ]);
+      if (volumesData) setVolumes(JSON.parse(volumesData));
+      if (presetsData) setPresets(JSON.parse(presetsData));
+      if (favoritesData) setFavorites(JSON.parse(favoritesData));
+    } catch (e) {
+      console.error('Failed to load persisted data', e);
+    }
+  };
 
   const toggleSound = async (soundId: string) => {
     const existing = playingSounds.find(s => s.id === soundId);
@@ -28,57 +73,123 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await existing.sound.unloadAsync();
       setPlayingSounds(prev => prev.filter(s => s.id !== soundId));
     } else {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: true });
+      const soundData = getSoundById(soundId);
+      if (!soundData?.remoteUrl) return;
+
+      const savedVolume = volumes[soundId] ?? 0.5;
       const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://example.com/sound.mp3' },
-        { shouldPlay: true, isLooping: true, volume: 0.5 }
+        { uri: soundData.remoteUrl },
+        { shouldPlay: true, isLooping: true, volume: savedVolume }
       );
-      setPlayingSounds(prev => [...prev, { id: soundId, sound, volume: 0.5 }]);
+      setPlayingSounds(prev => [...prev, { id: soundId, sound, volume: savedVolume }]);
     }
   };
 
-  const setVolume = (soundId: string, volume: number) => {
+  const setVolume = async (soundId: string, volume: number) => {
     const playing = playingSounds.find(s => s.id === soundId);
     if (playing) {
-      playing.sound.setVolumeAsync(volume);
+      await playing.sound.setVolumeAsync(volume);
       setPlayingSounds(prev => prev.map(s => s.id === soundId ? { ...s, volume } : s));
     }
+    const newVolumes = { ...volumes, [soundId]: volume };
+    setVolumes(newVolumes);
+    await AsyncStorage.setItem(STORAGE_KEYS.VOLUMES, JSON.stringify(newVolumes));
   };
 
-  const stopAll = () => {
-    playingSounds.forEach(s => {
-      s.sound.stopAsync();
-      s.sound.unloadAsync();
-    });
+  const stopAll = async () => {
+    await Promise.all(playingSounds.map(s => s.sound.stopAsync().then(() => s.sound.unloadAsync())));
     setPlayingSounds([]);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setTimerState(null);
+    setTimerRemaining(null);
   };
 
   const setTimer = (minutes: number | null) => {
-    setTimerState(minutes);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
     if (minutes) {
-      setTimeout(stopAll, minutes * 60 * 1000);
+      setTimerState(minutes);
+      setTimerRemaining(minutes * 60);
+      timerRef.current = setInterval(() => {
+        setTimerRemaining(prev => {
+          if (prev === null || prev <= 1) {
+            stopAll();
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      setTimerState(null);
+      setTimerRemaining(null);
     }
   };
 
-  const saveScene = (name: string) => {
-    const scene: Scene = {
-      id: Date.now().toString(),
-      name,
-      sounds: playingSounds.map(s => ({ soundId: s.id, volume: s.volume }))
+  const saveToPreset = async (presetIndex: number, soundIds: string[]) => {
+    const newPresets = [...presets];
+    newPresets[presetIndex] = {
+      ...newPresets[presetIndex],
+      sounds: soundIds.slice(0, 10).map(id => ({ soundId: id, volume: volumes[id] ?? 0.5 }))
     };
-    setScenes(prev => [...prev, scene]);
+    setPresets(newPresets);
+    await AsyncStorage.setItem(STORAGE_KEYS.PRESETS, JSON.stringify(newPresets));
   };
 
-  const loadScene = async (scene: Scene) => {
-    stopAll();
-    for (const s of scene.sounds) {
+  const loadPreset = async (presetIndex: number) => {
+    await stopAll();
+    const preset = presets[presetIndex];
+    for (const s of preset.sounds) {
       await toggleSound(s.soundId);
-      setVolume(s.soundId, s.volume);
+      await setVolume(s.soundId, s.volume);
     }
+  };
+
+  const setCurrentPreset = (index: number) => {
+    setCurrentPresetIndex(index);
+  };
+
+  const toggleFavorite = async (soundId: string) => {
+    const exists = favorites.find(f => f.soundId === soundId);
+    const newFavorites = exists
+      ? favorites.filter(f => f.soundId !== soundId)
+      : [...favorites, { soundId, addedAt: Date.now() }];
+    setFavorites(newFavorites);
+    await AsyncStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(newFavorites));
+  };
+
+  const isFavorite = (soundId: string) => {
+    return favorites.some(f => f.soundId === soundId);
+  };
+
+  const getVolume = (soundId: string) => {
+    return volumes[soundId] ?? 0.5;
   };
 
   return (
-    <AudioContext.Provider value={{ playingSounds, scenes, timer, toggleSound, setVolume, stopAll, setTimer, saveScene, loadScene }}>
+    <AudioContext.Provider value={{
+      playingSounds,
+      presets,
+      currentPresetIndex,
+      favorites,
+      timer,
+      timerRemaining,
+      toggleSound,
+      setVolume,
+      stopAll,
+      setTimer,
+      saveToPreset,
+      loadPreset,
+      setCurrentPreset,
+      toggleFavorite,
+      isFavorite,
+      getVolume,
+    }}>
       {children}
     </AudioContext.Provider>
   );
