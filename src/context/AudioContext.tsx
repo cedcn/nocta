@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { Audio } from 'expo-av';
+import { Audio } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayingSound, Preset, FavoriteSound } from '../types';
 import { getSoundById } from '../data/sounds';
@@ -29,7 +29,6 @@ const STORAGE_KEYS = {
   VOLUMES: '@nocta_volumes',
   PRESETS: '@nocta_presets',
   FAVORITES: '@nocta_favorites',
-  RECENT: '@nocta_recent',
 };
 
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -48,7 +47,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     loadPersistedData();
-    Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: true });
+    Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
   }, []);
 
   const loadPersistedData = async () => {
@@ -62,14 +61,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (presetsData) setPresets(JSON.parse(presetsData));
       if (favoritesData) setFavorites(JSON.parse(favoritesData));
     } catch (e) {
-      console.error('Failed to load persisted data', e);
+      console.error('Failed to load data', e);
     }
   };
 
   const toggleSound = async (soundId: string) => {
     const existing = playingSounds.find(s => s.id === soundId);
     if (existing) {
-      await existing.sound.stopAsync();
+      await existing.sound.pauseAsync();
       await existing.sound.unloadAsync();
       setPlayingSounds(prev => prev.filter(s => s.id !== soundId));
     } else {
@@ -77,11 +76,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!soundData?.remoteUrl) return;
 
       const savedVolume = volumes[soundId] ?? 0.5;
-      const { sound } = await Audio.Sound.createAsync(
+      const sound = await Audio.Sound.createAsync(
         { uri: soundData.remoteUrl },
         { shouldPlay: true, isLooping: true, volume: savedVolume }
       );
-      setPlayingSounds(prev => [...prev, { id: soundId, sound, volume: savedVolume }]);
+      setPlayingSounds(prev => [...prev, { id: soundId, sound: sound.sound, volume: savedVolume }]);
     }
   };
 
@@ -97,7 +96,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const stopAll = async () => {
-    await Promise.all(playingSounds.map(s => s.sound.stopAsync().then(() => s.sound.unloadAsync())));
+    await Promise.all(playingSounds.map(s => s.sound.pauseAsync().then(() => s.sound.unloadAsync())));
     setPlayingSounds([]);
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -163,32 +162,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await AsyncStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(newFavorites));
   };
 
-  const isFavorite = (soundId: string) => {
-    return favorites.some(f => f.soundId === soundId);
-  };
-
-  const getVolume = (soundId: string) => {
-    return volumes[soundId] ?? 0.5;
-  };
+  const isFavorite = (soundId: string) => favorites.some(f => f.soundId === soundId);
+  const getVolume = (soundId: string) => volumes[soundId] ?? 0.5;
 
   return (
     <AudioContext.Provider value={{
-      playingSounds,
-      presets,
-      currentPresetIndex,
-      favorites,
-      timer,
-      timerRemaining,
-      toggleSound,
-      setVolume,
-      stopAll,
-      setTimer,
-      saveToPreset,
-      loadPreset,
-      setCurrentPreset,
-      toggleFavorite,
-      isFavorite,
-      getVolume,
+      playingSounds, presets, currentPresetIndex, favorites, timer, timerRemaining,
+      toggleSound, setVolume, stopAll, setTimer, saveToPreset, loadPreset,
+      setCurrentPreset, toggleFavorite, isFavorite, getVolume,
     }}>
       {children}
     </AudioContext.Provider>
