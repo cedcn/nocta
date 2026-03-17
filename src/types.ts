@@ -1,3 +1,5 @@
+import { AudioPlayer } from 'expo-audio';
+
 export type AudioSource = 'LOCAL' | 'REMOTE' | 'IMPORTED';
 
 export interface SoundMetadata {
@@ -35,7 +37,7 @@ export interface SoundsManifest {
 
 export interface PlayingSound {
   id: string;
-  sound: any;
+  sound: AudioPlayer;
   volume: number;
 }
 

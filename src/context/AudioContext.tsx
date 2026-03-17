@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { Audio } from 'expo-audio';
+import { AudioPlayer, setAudioModeAsync } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayingSound, Preset, FavoriteSound } from '../types';
 import { getSoundById } from '../data/sounds';
@@ -47,7 +47,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     loadPersistedData();
-    Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+    setAudioModeAsync({ playsInSilentModeIOS: true }).catch(console.error);
   }, []);
 
   const loadPersistedData = async () => {
@@ -68,26 +68,26 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toggleSound = async (soundId: string) => {
     const existing = playingSounds.find(s => s.id === soundId);
     if (existing) {
-      await existing.sound.pauseAsync();
-      await existing.sound.unloadAsync();
+      existing.sound.pause();
+      existing.sound.remove();
       setPlayingSounds(prev => prev.filter(s => s.id !== soundId));
     } else {
       const soundData = getSoundById(soundId);
       if (!soundData?.remoteUrl) return;
 
       const savedVolume = volumes[soundId] ?? 0.5;
-      const sound = await Audio.Sound.createAsync(
-        { uri: soundData.remoteUrl },
-        { shouldPlay: true, isLooping: true, volume: savedVolume }
-      );
-      setPlayingSounds(prev => [...prev, { id: soundId, sound: sound.sound, volume: savedVolume }]);
+      const sound = new AudioPlayer(soundData.remoteUrl);
+      sound.loop = true;
+      sound.volume = savedVolume;
+      sound.play();
+      setPlayingSounds(prev => [...prev, { id: soundId, sound, volume: savedVolume }]);
     }
   };
 
   const setVolume = async (soundId: string, volume: number) => {
     const playing = playingSounds.find(s => s.id === soundId);
     if (playing) {
-      await playing.sound.setVolumeAsync(volume);
+      playing.sound.volume = volume;
       setPlayingSounds(prev => prev.map(s => s.id === soundId ? { ...s, volume } : s));
     }
     const newVolumes = { ...volumes, [soundId]: volume };
@@ -96,7 +96,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const stopAll = async () => {
-    await Promise.all(playingSounds.map(s => s.sound.pauseAsync().then(() => s.sound.unloadAsync())));
+    playingSounds.forEach(s => { s.sound.pause(); s.sound.remove(); });
     setPlayingSounds([]);
     if (timerRef.current) {
       clearInterval(timerRef.current);
