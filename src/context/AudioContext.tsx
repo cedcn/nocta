@@ -47,7 +47,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     loadPersistedData();
-    setAudioModeAsync({ playsInSilentModeIOS: true }).catch(console.error);
+    setAudioModeAsync({ playsInSilentModeIOS: true }).catch(() => {});
   }, []);
 
   const loadPersistedData = async () => {
