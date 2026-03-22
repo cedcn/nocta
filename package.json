@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "prebuild": "expo prebuild --clean",
+    "prebuild:android": "expo prebuild --clean --platform android",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
