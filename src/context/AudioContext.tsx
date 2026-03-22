@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { AudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayingSound, Preset, FavoriteSound } from '../types';
 import { getSoundById } from '../data/sounds';
@@ -68,7 +68,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toggleSound = async (soundId: string) => {
     const existing = playingSounds.find(s => s.id === soundId);
     if (existing) {
-      existing.sound.pause();
+      await existing.sound.pause();
       existing.sound.remove();
       setPlayingSounds(prev => prev.filter(s => s.id !== soundId));
     } else {
@@ -76,10 +76,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!soundData?.remoteUrl) return;
 
       const savedVolume = volumes[soundId] ?? 0.5;
-      const sound = new AudioPlayer(soundData.remoteUrl);
+      const sound = createAudioPlayer(soundData.remoteUrl);
       sound.loop = true;
       sound.volume = savedVolume;
-      sound.play();
+      await sound.play();
       setPlayingSounds(prev => [...prev, { id: soundId, sound, volume: savedVolume }]);
     }
   };
