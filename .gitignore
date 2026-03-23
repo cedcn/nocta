@@ -38,6 +38,13 @@ yarn-error.*
 *.keystore
 keystore.properties
 
+# Fastlane
+fastlane/google-play-key.json
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
 # typescript
 *.tsbuildinfo
 

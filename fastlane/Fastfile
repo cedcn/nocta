@@ -1,0 +1,68 @@
+default_platform(:android)
+
+platform :android do
+  desc "Build release AAB"
+  lane :build do
+    Dir.chdir("..") do
+      sh("npx", "expo", "prebuild", "--platform", "android", "--clean")
+    end
+
+    gradle(
+      project_dir: "../android",
+      task: "bundle",
+      build_type: "Release"
+    )
+  end
+
+  desc "Deploy to Google Play internal testing track"
+  lane :internal do
+    build
+
+    upload_to_play_store(
+      track: "internal",
+      aab: "../android/app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Deploy to Google Play closed alpha track"
+  lane :alpha do
+    build
+
+    upload_to_play_store(
+      track: "alpha",
+      aab: "../android/app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Deploy to Google Play beta track"
+  lane :beta do
+    build
+
+    upload_to_play_store(
+      track: "beta",
+      aab: "../android/app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Deploy to Google Play production"
+  lane :production do
+    build
+
+    upload_to_play_store(
+      track: "production",
+      aab: "../android/app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+end
