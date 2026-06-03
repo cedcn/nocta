@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useAudio } from '../context/AudioContext';
+import { colors, radii, fontSize, shadow } from '../theme';
 
 export default function PresetBar() {
   const { presets, currentPresetIndex, setCurrentPreset, loadPreset, saveToPreset, playingSounds } = useAudio();
@@ -14,25 +15,30 @@ export default function PresetBar() {
   };
 
   const handleSaveToPreset = (index: number) => {
-    const soundIds = playingSounds.map(p => p.id);
+    const soundIds = playingSounds.map((p) => p.id);
     saveToPreset(index, soundIds);
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Presets</Text>
+      <Text style={styles.hint}>Tap to load · long-press to save</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroll}>
         {presets.map((preset, index) => (
-          <View key={preset.id} style={styles.presetWrapper}>
-            <TouchableOpacity
-              style={[styles.preset, currentPresetIndex === index && styles.presetActive]}
-              onPress={() => handlePresetPress(index)}
-              onLongPress={() => handleSaveToPreset(index)}
-            >
-              <Text style={styles.presetNumber}>{index + 1}</Text>
-              <Text style={styles.presetCount}>{preset.sounds.length}/10</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            key={preset.id}
+            style={[styles.preset, currentPresetIndex === index && styles.presetActive]}
+            onPress={() => handlePresetPress(index)}
+            onLongPress={() => handleSaveToPreset(index)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.presetNumber, currentPresetIndex === index && styles.presetTextActive]}>
+              {index + 1}
+            </Text>
+            <Text style={[styles.presetCount, currentPresetIndex === index && styles.presetTextActive]}>
+              {preset.sounds.length}/10
+            </Text>
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </View>
@@ -40,12 +46,24 @@ export default function PresetBar() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: 20, marginBottom: 15 },
-  title: { fontSize: 16, color: '#fff', fontWeight: '600', marginBottom: 10 },
+  container: { paddingHorizontal: 20, marginBottom: 16 },
+  title: { fontSize: fontSize.subtitle, color: colors.textPrimary, fontWeight: '700' },
+  hint: { fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2, marginBottom: 12 },
   scroll: { flexDirection: 'row' },
-  presetWrapper: { marginRight: 12 },
-  preset: { backgroundColor: '#1a2332', width: 70, height: 70, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
-  presetActive: { borderColor: '#3b5998', backgroundColor: '#1e2a3f' },
-  presetNumber: { fontSize: 20, color: '#fff', fontWeight: 'bold' },
-  presetCount: { fontSize: 12, color: '#6b7fa8', marginTop: 4 },
+  preset: {
+    backgroundColor: colors.glass,
+    width: 70,
+    height: 70,
+    borderRadius: radii.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    marginRight: 12,
+    ...shadow,
+  },
+  presetActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  presetNumber: { fontSize: fontSize.title, color: colors.textPrimary, fontWeight: '800' },
+  presetCount: { fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 4 },
+  presetTextActive: { color: colors.textOnAccent },
 });

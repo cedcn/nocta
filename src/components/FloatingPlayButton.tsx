@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { ChevronUp, ChevronDown } from 'lucide-react-native';
 import { useAudio } from '../context/AudioContext';
 import { getSoundById } from '../data/sounds';
+import GlassCard from './GlassCard';
+import { colors, radii, fontSize, shadow } from '../theme';
 
 export default function FloatingPlayButton() {
   const { playingSounds, stopAll } = useAudio();
@@ -10,16 +13,16 @@ export default function FloatingPlayButton() {
   if (playingSounds.length === 0) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       {expanded && (
-        <View style={styles.expandedView}>
+        <GlassCard strong style={styles.expandedView}>
           <View style={styles.header}>
             <Text style={styles.headerText}>Playing ({playingSounds.length})</Text>
-            <TouchableOpacity onPress={stopAll}>
-              <Text style={styles.stopText}>⏹ Stop All</Text>
+            <TouchableOpacity onPress={stopAll} activeOpacity={0.7}>
+              <Text style={styles.stopText}>Stop All</Text>
             </TouchableOpacity>
           </View>
-          {playingSounds.map(ps => {
+          {playingSounds.map((ps) => {
             const sound = getSoundById(ps.id);
             return (
               <View key={ps.id} style={styles.soundItem}>
@@ -28,29 +31,45 @@ export default function FloatingPlayButton() {
               </View>
             );
           })}
-        </View>
+        </GlassCard>
       )}
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => setExpanded(!expanded)}
-      >
-        <Text style={styles.buttonText}>
-          {expanded ? '▼' : '▲'} {playingSounds.length} playing
-        </Text>
+      <TouchableOpacity style={styles.button} onPress={() => setExpanded(!expanded)} activeOpacity={0.85}>
+        {expanded ? (
+          <ChevronDown size={18} color={colors.textOnAccent} />
+        ) : (
+          <ChevronUp size={18} color={colors.textOnAccent} />
+        )}
+        <Text style={styles.buttonText}>{playingSounds.length} playing</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { position: 'absolute', bottom: 80, right: 20, left: 20 },
-  expandedView: { backgroundColor: '#1a2332', borderRadius: 12, padding: 16, marginBottom: 10 },
+  container: { position: 'absolute', bottom: 100, right: 20, left: 20 },
+  expandedView: { marginBottom: 10 },
   header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  headerText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  stopText: { color: '#d32f2f', fontSize: 14, fontWeight: '600' },
-  soundItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#2a3447' },
-  soundName: { color: '#fff', fontSize: 14 },
-  volumeText: { color: '#6b7fa8', fontSize: 14 },
-  button: { backgroundColor: '#3b5998', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 25, alignItems: 'center' },
-  buttonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  headerText: { color: colors.textPrimary, fontSize: fontSize.subtitle, fontWeight: '700' },
+  stopText: { color: colors.danger, fontSize: fontSize.body, fontWeight: '700' },
+  soundItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.trackInactive,
+  },
+  soundName: { color: colors.textPrimary, fontSize: fontSize.body },
+  volumeText: { color: colors.textSecondary, fontSize: fontSize.body },
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.accent,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: radii.pill,
+    ...shadow,
+  },
+  buttonText: { color: colors.textOnAccent, fontSize: fontSize.body, fontWeight: '700' },
 });

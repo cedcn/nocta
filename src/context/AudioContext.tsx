@@ -43,7 +43,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [timer, setTimerState] = useState<number | null>(null);
   const [timerRemaining, setTimerRemaining] = useState<number | null>(null);
   const [volumes, setVolumes] = useState<Record<string, number>>({});
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     loadPersistedData();

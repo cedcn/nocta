@@ -1,71 +1,101 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Square } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAudio } from '../context/AudioContext';
 import { getAllCategories, getSoundsByCategory } from '../data/sounds';
-import SoundCard from '../components/SoundCard';
+import ScreenBackground from '../components/ScreenBackground';
+import SoundRow from '../components/SoundRow';
 import PresetBar from '../components/PresetBar';
 import TimerControl from '../components/TimerControl';
 import FloatingPlayButton from '../components/FloatingPlayButton';
+import { colors, radii, fontSize } from '../theme';
 
 export default function MixerScreen() {
   const [selectedCategory, setSelectedCategory] = useState('nature');
+  const insets = useSafeAreaInsets();
   const categories = getAllCategories();
   const sounds = getSoundsByCategory(selectedCategory);
   const { playingSounds, stopAll } = useAudio();
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <ScreenBackground>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Mixer</Text>
-        <View style={styles.headerButtons}>
-          {playingSounds.length > 0 && (
-            <TouchableOpacity style={styles.stopButton} onPress={stopAll}>
-              <Text style={styles.stopButtonText}>⏹ Stop All</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {playingSounds.length > 0 && (
+          <TouchableOpacity style={styles.stopButton} onPress={stopAll} activeOpacity={0.8}>
+            <Square size={14} color={colors.textOnAccent} fill={colors.textOnAccent} />
+            <Text style={styles.stopButtonText}>Stop All</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <TimerControl />
-      <PresetBar />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
+      >
+        <TimerControl />
+        <PresetBar />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-        {categories.map(cat => (
-          <TouchableOpacity
-            key={cat.id}
-            style={[styles.categoryBtn, selectedCategory === cat.id && styles.categoryBtnActive]}
-            onPress={() => setSelectedCategory(cat.id)}
-          >
-            <Text style={[styles.categoryText, selectedCategory === cat.id && styles.categoryTextActive]}>
-              {cat.nameEn || cat.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chipsContent}>
+          {categories.map((cat) => (
+            <TouchableOpacity
+              key={cat.id}
+              style={[styles.chip, selectedCategory === cat.id && styles.chipActive]}
+              onPress={() => setSelectedCategory(cat.id)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.chipText, selectedCategory === cat.id && styles.chipTextActive]}>
+                {cat.nameEn || cat.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
-      <ScrollView style={styles.soundsScroll} contentContainerStyle={styles.soundsGrid}>
-        {sounds.map(sound => (
-          <SoundCard key={sound.id} sound={sound} isPlaying={playingSounds.some(p => p.id === sound.id)} />
-        ))}
+        <View style={styles.list}>
+          {sounds.map((sound) => (
+            <SoundRow key={sound.id} sound={sound} isPlaying={playingSounds.some((p) => p.id === sound.id)} />
+          ))}
+        </View>
       </ScrollView>
 
       {playingSounds.length > 0 && <FloatingPlayButton />}
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0e27' },
-  header: { padding: 20, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 32, fontWeight: 'bold', color: '#fff' },
-  headerButtons: { flexDirection: 'row', gap: 10 },
-  stopButton: { backgroundColor: '#d32f2f', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  stopButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  categoryScroll: { maxHeight: 50, marginHorizontal: 20, marginTop: 10 },
-  categoryBtn: { paddingHorizontal: 20, paddingVertical: 10, marginRight: 10, borderRadius: 20, backgroundColor: '#1a2332' },
-  categoryBtnActive: { backgroundColor: '#3b5998' },
-  categoryText: { color: '#6b7fa8', fontSize: 14 },
-  categoryTextActive: { color: '#fff', fontWeight: '600' },
-  soundsScroll: { flex: 1, marginTop: 20 },
-  soundsGrid: { padding: 20, paddingTop: 10, paddingBottom: 100 },
+  header: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  title: { fontSize: fontSize.display, fontWeight: '800', color: colors.textPrimary },
+  stopButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.danger,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+  },
+  stopButtonText: { color: colors.textOnAccent, fontSize: fontSize.body, fontWeight: '700' },
+  chipsScroll: { flexGrow: 0, marginBottom: 16 },
+  chipsContent: { paddingHorizontal: 20 },
+  chip: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    marginRight: 10,
+  },
+  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipText: { color: colors.textSecondary, fontSize: fontSize.body, fontWeight: '600' },
+  chipTextActive: { color: colors.textOnAccent },
+  list: { paddingHorizontal: 20 },
 });

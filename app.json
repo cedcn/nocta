@@ -5,11 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0a0e27"
+      "backgroundColor": "#C3DDFB"
     },
     "ios": {
       "supportsTablet": true,
@@ -26,7 +26,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.nocta.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "compileSdkVersion": 36,
       "targetSdkVersion": 36,
       "buildToolsVersion": "36.0.0"

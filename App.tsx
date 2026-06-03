@@ -1,36 +1,49 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { AudioProvider } from './src/context/AudioContext';
 import HomeScreen from './src/screens/HomeScreen';
+import CategoryDetailScreen from './src/screens/CategoryDetailScreen';
 import MixerScreen from './src/screens/MixerScreen';
 import FavoritesScreen from './src/screens/FavoritesScreen';
 import QuotesScreen from './src/screens/QuotesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import { Ionicons } from '@expo/vector-icons';
+import TabBar from './src/components/TabBar';
+import { HomeStackParamList } from './src/navigation';
 
 const Tab = createBottomTabNavigator();
+const HomeStack = createNativeStackNavigator<HomeStackParamList>();
+
+function HomeStackNavigator() {
+  return (
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStack.Screen name="HomeMain" component={HomeScreen} />
+      <HomeStack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
+    </HomeStack.Navigator>
+  );
+}
 
 export default function App() {
   return (
-    <AudioProvider>
-      <NavigationContainer>
-        <Tab.Navigator
-          screenOptions={{
-            headerShown: false,
-            tabBarStyle: { backgroundColor: '#0a0e27', borderTopColor: '#1a2332', height: 60, paddingBottom: 8 },
-            tabBarActiveTintColor: '#3b5998',
-            tabBarInactiveTintColor: '#3b4a6b',
-            tabBarLabelStyle: { fontSize: 11 },
-          }}
-        >
-          <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Home', tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} /> }} />
-          <Tab.Screen name="Mixer" component={MixerScreen} options={{ tabBarLabel: 'Mixer', tabBarIcon: ({ color }) => <Ionicons name="musical-notes" size={24} color={color} /> }} />
-          <Tab.Screen name="Favorites" component={FavoritesScreen} options={{ tabBarLabel: 'Favorites', tabBarIcon: ({ color }) => <Ionicons name="heart" size={24} color={color} /> }} />
-          <Tab.Screen name="Quotes" component={QuotesScreen} options={{ tabBarLabel: 'Quotes', tabBarIcon: ({ color }) => <Ionicons name="chatbox-ellipses" size={24} color={color} /> }} />
-          <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: 'Settings', tabBarIcon: ({ color }) => <Ionicons name="settings" size={24} color={color} /> }} />
-        </Tab.Navigator>
-      </NavigationContainer>
-    </AudioProvider>
+    <SafeAreaProvider>
+      <AudioProvider>
+        <StatusBar style="dark" />
+        <NavigationContainer>
+          <Tab.Navigator
+            screenOptions={{ headerShown: false }}
+            tabBar={(props) => <TabBar {...props} />}
+          >
+            <Tab.Screen name="Home" component={HomeStackNavigator} />
+            <Tab.Screen name="Mixer" component={MixerScreen} />
+            <Tab.Screen name="Favorites" component={FavoritesScreen} />
+            <Tab.Screen name="Quotes" component={QuotesScreen} />
+            <Tab.Screen name="Settings" component={SettingsScreen} />
+          </Tab.Navigator>
+        </NavigationContainer>
+      </AudioProvider>
+    </SafeAreaProvider>
   );
 }
