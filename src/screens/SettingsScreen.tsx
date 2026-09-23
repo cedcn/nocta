@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Switch, Modal, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Modal, Alert } from 'react-native';
 import { Check, ChevronRight, CircleStop, ExternalLink } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
 import { TIMER_OPTIONS, useAudio } from '../context/AudioContext';
-import { useSettings } from '../context/SettingsContext';
 import { useLanguage } from '../i18n/LanguageProvider';
 import { LANGUAGES, LanguagePreference } from '../i18n/languages';
 import { useRootNavigation } from '../navigation';
@@ -27,7 +26,6 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const navigation = useRootNavigation();
   const { stopAll, presets, autoCountdown, setAutoCountdown } = useAudio();
-  const { showBreathingTab, setShowBreathingTab } = useSettings();
   const { preference, setPreference } = useLanguage();
   const [picker, setPicker] = useState<'language' | 'countdown' | null>(null);
 
@@ -110,21 +108,6 @@ export default function SettingsScreen() {
           <View style={styles.item}>
             <Text style={styles.itemText}>{t('settings.savedPresets')}</Text>
             <Text style={styles.itemValue}>{savedPresets}</Text>
-          </View>
-        </GlassCard>
-
-        <Text style={styles.sectionTitle}>{t('settings.features')}</Text>
-        <GlassCard style={styles.group}>
-          <View style={styles.item}>
-            <View style={styles.itemTexts}>
-              <Text style={styles.itemText}>{t('settings.showBreathingTab')}</Text>
-              <Text style={styles.itemDesc}>{t('settings.showBreathingTabDesc')}</Text>
-            </View>
-            <Switch
-              value={showBreathingTab}
-              onValueChange={setShowBreathingTab}
-              trackColor={{ true: colors.accent, false: colors.trackInactive }}
-            />
           </View>
         </GlassCard>
 

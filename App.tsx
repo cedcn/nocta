@@ -6,7 +6,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AudioProvider } from './src/context/AudioContext';
-import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { PomodoroProvider } from './src/context/PomodoroContext';
 import { WeatherProvider } from './src/context/WeatherContext';
 import { LanguageProvider } from './src/i18n/LanguageProvider';
@@ -45,12 +44,11 @@ function HomeStackNavigator() {
 }
 
 function MainTabs() {
-  const { showBreathingTab } = useSettings();
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
       <Tab.Screen name="Home" component={HomeStackNavigator} />
       <Tab.Screen name="Mixer" component={MixerScreen} />
-      {showBreathingTab && <Tab.Screen name="Breathing" component={BreathingListScreen} />}
+      <Tab.Screen name="Breathing" component={BreathingListScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
@@ -64,30 +62,28 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <LanguageProvider>
-        <SettingsProvider>
-          <AudioProvider>
-            <PomodoroProvider>
-              <WeatherProvider>
-                <StatusBar style="light" />
-                <NavigationContainer theme={navigationTheme}>
-                  <RootStack.Navigator screenOptions={{ headerShown: false, orientation: 'portrait' }}>
-                    <RootStack.Screen name="MainTabs" component={MainTabs} />
-                    <RootStack.Screen name="BreathingDetail" component={BreathingDetailScreen} />
-                    <RootStack.Screen name="MeditationList" component={MeditationListScreen} />
-                    <RootStack.Screen name="MeditationPlayer" component={MeditationPlayerScreen} />
-                    <RootStack.Screen name="Pomodoro" component={PomodoroScreen} />
-                    <RootStack.Screen
-                      name="BigClock"
-                      component={BigClockScreen}
-                      options={{ animation: 'fade', orientation: 'all' }}
-                    />
-                    <RootStack.Screen name="WeatherSettings" component={WeatherSettingsScreen} />
-                  </RootStack.Navigator>
-                </NavigationContainer>
-              </WeatherProvider>
-            </PomodoroProvider>
-          </AudioProvider>
-        </SettingsProvider>
+        <AudioProvider>
+          <PomodoroProvider>
+            <WeatherProvider>
+              <StatusBar style="light" />
+              <NavigationContainer theme={navigationTheme}>
+                <RootStack.Navigator screenOptions={{ headerShown: false, orientation: 'portrait' }}>
+                  <RootStack.Screen name="MainTabs" component={MainTabs} />
+                  <RootStack.Screen name="BreathingDetail" component={BreathingDetailScreen} />
+                  <RootStack.Screen name="MeditationList" component={MeditationListScreen} />
+                  <RootStack.Screen name="MeditationPlayer" component={MeditationPlayerScreen} />
+                  <RootStack.Screen name="Pomodoro" component={PomodoroScreen} />
+                  <RootStack.Screen
+                    name="BigClock"
+                    component={BigClockScreen}
+                    options={{ animation: 'fade', orientation: 'all' }}
+                  />
+                  <RootStack.Screen name="WeatherSettings" component={WeatherSettingsScreen} />
+                </RootStack.Navigator>
+              </NavigationContainer>
+            </WeatherProvider>
+          </PomodoroProvider>
+        </AudioProvider>
       </LanguageProvider>
     </SafeAreaProvider>
   );

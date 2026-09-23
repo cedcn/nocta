@@ -41,8 +41,8 @@ Not ported (by choice): Bilibili radio, local audio library, sound diary, daily-
 
 1. **Home**: categories, featured sound, weather card, Pomodoro entry
 2. **Mixer**: timer, presets, mixing
-3. **Breathe**: breathing methods and meditation (can be hidden in Settings)
-4. **Settings**: auto countdown, tab visibility, Big Clock, weather, language, about
+3. **Breathe**: breathing methods and meditation
+4. **Settings**: auto countdown, Big Clock, weather, language, about
 
 ## 🛠️ Tech Stack
 
