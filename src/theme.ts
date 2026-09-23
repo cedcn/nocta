@@ -67,13 +67,11 @@ export const fontSize = {
   display: 32,
 };
 
-// Soft drop shadow shared by glass surfaces
+// Soft drop shadow shared by glass surfaces.
+// boxShadow instead of Android elevation: elevation paints under the whole view,
+// so it bleeds through translucent glass backgrounds.
 export const shadow = {
-  shadowColor: '#3A5A9B',
-  shadowOffset: { width: 0, height: 8 },
-  shadowOpacity: 0.18,
-  shadowRadius: 16,
-  elevation: 6,
+  boxShadow: '0px 8px 16px rgba(58, 90, 155, 0.18)',
 };
 
 export interface CategoryStyle {
