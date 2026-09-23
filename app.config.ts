@@ -9,7 +9,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    name: config.name ?? "nocta",
+    name: config.name ?? "Nocta",
     slug: config.slug ?? "nocta",
     android: { ...config.android, versionCode },
   };
