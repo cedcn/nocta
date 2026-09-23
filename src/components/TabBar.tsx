@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Home, Music, Wind, MessageCircle, Settings, LucideIcon } from 'lucide-react-native';
+import { Home, Music, Wind, Settings, LucideIcon } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -10,7 +10,6 @@ const ICONS: Record<string, LucideIcon> = {
   Home,
   Mixer: Music,
   Breathing: Wind,
-  Quotes: MessageCircle,
   Settings,
 };
 

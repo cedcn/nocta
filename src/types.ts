@@ -52,11 +52,3 @@ export interface Preset {
   name: string;
   sounds: { soundId: string; volume: number }[];
 }
-
-export interface Quote {
-  id: number;
-  text: string;
-  author: string;
-  from?: string;
-  category: string;
-}

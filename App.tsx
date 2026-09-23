@@ -14,7 +14,6 @@ import { refreshManifest } from './src/data/sounds';
 import HomeScreen from './src/screens/HomeScreen';
 import CategoryDetailScreen from './src/screens/CategoryDetailScreen';
 import MixerScreen from './src/screens/MixerScreen';
-import QuotesScreen from './src/screens/QuotesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import BreathingListScreen from './src/screens/breathing/BreathingListScreen';
 import BreathingDetailScreen from './src/screens/breathing/BreathingDetailScreen';
@@ -46,7 +45,6 @@ function MainTabs() {
       <Tab.Screen name="Home" component={HomeStackNavigator} />
       <Tab.Screen name="Mixer" component={MixerScreen} />
       {showBreathingTab && <Tab.Screen name="Breathing" component={BreathingListScreen} />}
-      <Tab.Screen name="Quotes" component={QuotesScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );

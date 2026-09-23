@@ -1,7 +1,7 @@
 import type { Language } from '../languages';
 
 const en = {
-  tabs: { Home: 'Home', Mixer: 'Mixer', Breathing: 'Breathe', Quotes: 'Quotes', Settings: 'Settings' },
+  tabs: { Home: 'Home', Mixer: 'Mixer', Breathing: 'Breathe', Settings: 'Settings' },
   actions: {
     play: 'Play',
     pause: 'Pause',
@@ -66,7 +66,6 @@ const en = {
     nothingPlaying: 'Play some sounds first',
     soundCount: '{{count}}/{{max}}',
   },
-  quotes: { title: 'Daily Quote', share: 'Share', all: 'All Quotes' },
   settings: {
     title: 'Settings',
     audio: 'Audio',
@@ -93,7 +92,7 @@ const en = {
 type CommonResource = typeof en;
 
 const zhCN: CommonResource = {
-  tabs: { Home: '首页', Mixer: '混音', Breathing: '呼吸', Quotes: '名句', Settings: '设置' },
+  tabs: { Home: '首页', Mixer: '混音', Breathing: '呼吸', Settings: '设置' },
   actions: {
     play: '播放',
     pause: '暂停',
@@ -158,7 +157,6 @@ const zhCN: CommonResource = {
     nothingPlaying: '请先播放一些声音',
     soundCount: '{{count}}/{{max}}',
   },
-  quotes: { title: '每日一言', share: '分享', all: '全部名句' },
   settings: {
     title: '设置',
     audio: '音频',
@@ -183,7 +181,7 @@ const zhCN: CommonResource = {
 };
 
 const zhTW: CommonResource = {
-  tabs: { Home: '首頁', Mixer: '混音', Breathing: '呼吸', Quotes: '名句', Settings: '設定' },
+  tabs: { Home: '首頁', Mixer: '混音', Breathing: '呼吸', Settings: '設定' },
   actions: {
     play: '播放',
     pause: '暫停',
@@ -248,7 +246,6 @@ const zhTW: CommonResource = {
     nothingPlaying: '請先播放一些聲音',
     soundCount: '{{count}}/{{max}}',
   },
-  quotes: { title: '每日一言', share: '分享', all: '全部名句' },
   settings: {
     title: '設定',
     audio: '音訊',
@@ -273,7 +270,7 @@ const zhTW: CommonResource = {
 };
 
 const ko: CommonResource = {
-  tabs: { Home: '홈', Mixer: '믹서', Breathing: '호흡', Quotes: '명언', Settings: '설정' },
+  tabs: { Home: '홈', Mixer: '믹서', Breathing: '호흡', Settings: '설정' },
   actions: {
     play: '재생',
     pause: '일시정지',
@@ -338,7 +335,6 @@ const ko: CommonResource = {
     nothingPlaying: '먼저 사운드를 재생하세요',
     soundCount: '{{count}}/{{max}}',
   },
-  quotes: { title: '오늘의 명언', share: '공유', all: '전체 명언' },
   settings: {
     title: '설정',
     audio: '오디오',
@@ -363,7 +359,7 @@ const ko: CommonResource = {
 };
 
 const ja: CommonResource = {
-  tabs: { Home: 'ホーム', Mixer: 'ミキサー', Breathing: '呼吸', Quotes: '名言', Settings: '設定' },
+  tabs: { Home: 'ホーム', Mixer: 'ミキサー', Breathing: '呼吸', Settings: '設定' },
   actions: {
     play: '再生',
     pause: '一時停止',
@@ -428,7 +424,6 @@ const ja: CommonResource = {
     nothingPlaying: '先にサウンドを再生してください',
     soundCount: '{{count}}/{{max}}',
   },
-  quotes: { title: '今日のひとこと', share: '共有', all: 'すべての名言' },
   settings: {
     title: '設定',
     audio: 'オーディオ',
@@ -453,7 +448,7 @@ const ja: CommonResource = {
 };
 
 const ru = {
-  tabs: { Home: 'Главная', Mixer: 'Микшер', Breathing: 'Дыхание', Quotes: 'Цитаты', Settings: 'Настройки' },
+  tabs: { Home: 'Главная', Mixer: 'Микшер', Breathing: 'Дыхание', Settings: 'Настройки' },
   actions: {
     play: 'Играть',
     pause: 'Пауза',
@@ -522,7 +517,6 @@ const ru = {
     nothingPlaying: 'Сначала включите звуки',
     soundCount: '{{count}}/{{max}}',
   },
-  quotes: { title: 'Цитата дня', share: 'Поделиться', all: 'Все цитаты' },
   settings: {
     title: 'Настройки',
     audio: 'Аудио',
