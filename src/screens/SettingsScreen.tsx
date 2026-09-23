@@ -15,7 +15,6 @@ import WeatherSettingsSection from '../components/weather/WeatherSettingsSection
 import { colors, fontSize, radii } from '../theme';
 
 const GITHUB_URL = 'https://github.com/Tosencen/XMSLEEP';
-const WEB_PLAYER_URL = 'https://tosencen.github.io/XMSLEEP/player.html';
 const METEOCONS_URL = 'https://github.com/basmilius/meteocons';
 
 interface Choice<T> {
@@ -145,28 +144,17 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </GlassCard>
 
-        <Text style={styles.sectionTitle}>{t('settings.other')}</Text>
-        <GlassCard style={styles.group}>
-          <TouchableOpacity style={styles.item} onPress={() => openUrl(WEB_PLAYER_URL)} activeOpacity={0.7}>
-            <View style={styles.itemTexts}>
-              <Text style={styles.itemText}>{t('settings.webVersion')}</Text>
-              <Text style={styles.itemDesc}>{t('settings.webVersionDesc')}</Text>
-            </View>
-            <ExternalLink size={20} color={colors.accent} />
-          </TouchableOpacity>
-          <View style={styles.divider} />
-          <TouchableOpacity style={styles.item} onPress={() => openUrl(GITHUB_URL)} activeOpacity={0.7}>
-            <Text style={styles.itemText}>{t('settings.originalProject')}</Text>
-            <ExternalLink size={20} color={colors.accent} />
-          </TouchableOpacity>
-        </GlassCard>
-
         <Text style={styles.sectionTitle}>{t('settings.about')}</Text>
         <GlassCard style={styles.group}>
           <View style={styles.item}>
             <Text style={styles.itemText}>{t('settings.version')}</Text>
             <Text style={styles.itemValue}>{version}</Text>
           </View>
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.item} onPress={() => openUrl(GITHUB_URL)} activeOpacity={0.7}>
+            <Text style={styles.itemText}>{t('settings.originalProject')}</Text>
+            <ExternalLink size={20} color={colors.accent} />
+          </TouchableOpacity>
           <View style={styles.divider} />
           <TouchableOpacity style={styles.item} onPress={() => openUrl(METEOCONS_URL)} activeOpacity={0.7}>
             <Text style={styles.itemDesc}>Weather icons: Meteocons by Bas Milius · MIT</Text>
