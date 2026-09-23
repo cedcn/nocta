@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   addButton: { minWidth: 70, borderStyle: 'dashed', borderColor: colors.accent },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(43, 58, 103, 0.35)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     padding: 32,
   },

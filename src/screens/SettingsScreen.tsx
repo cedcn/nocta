@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   itemValue: { color: colors.textSecondary, fontSize: fontSize.subtitle },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(43, 58, 103, 0.35)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     padding: 32,
   },

@@ -112,9 +112,9 @@ export default function PomodoroSettingsSheet({ visible, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(43, 58, 103, 0.35)' },
+  backdrop: { flex: 1, backgroundColor: colors.overlay },
   sheet: {
-    backgroundColor: '#F3F8FF',
+    backgroundColor: colors.glassStrong,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
     paddingHorizontal: 20,

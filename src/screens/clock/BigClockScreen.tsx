@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   controlBtnActive: { backgroundColor: colors.accent },
   hourText: { fontSize: fontSize.body, fontWeight: '800', color: colors.textPrimary },
   hourTextActive: { color: colors.textOnAccent },
-  backdrop: { flex: 1, backgroundColor: 'rgba(43, 58, 103, 0.35)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  backdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', padding: 24 },
   dialog: { padding: 16, width: 340, maxWidth: '100%' },
   dialogTitle: { fontSize: fontSize.subtitle, fontWeight: '700', color: colors.textPrimary, marginBottom: 8, paddingHorizontal: 4 },
   fontRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4 },

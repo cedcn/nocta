@@ -29,7 +29,7 @@ export default function MixerScreen() {
         <Text style={styles.title}>{t('mixer.title')}</Text>
         {playingSounds.length > 0 && (
           <TouchableOpacity style={styles.stopButton} onPress={stopAll} activeOpacity={0.8}>
-            <Square size={14} color={colors.textOnAccent} fill={colors.textOnAccent} />
+            <Square size={14} color={colors.textOnColor} fill={colors.textOnColor} />
             <Text style={styles.stopButtonText}>{t('actions.stopAll')}</Text>
           </TouchableOpacity>
         )}
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: radii.pill,
   },
-  stopButtonText: { color: colors.textOnAccent, fontSize: fontSize.body, fontWeight: '700' },
+  stopButtonText: { color: colors.textOnColor, fontSize: fontSize.body, fontWeight: '700' },
   chipsScroll: { flexGrow: 0, marginBottom: 16 },
   chipsContent: { paddingHorizontal: 20 },
   chip: {

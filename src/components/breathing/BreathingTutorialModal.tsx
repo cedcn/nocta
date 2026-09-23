@@ -54,7 +54,7 @@ export default function BreathingTutorialModal({ method, onClose }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(43, 58, 103, 0.35)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     padding: 24,
   },

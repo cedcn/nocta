@@ -1,6 +1,6 @@
 import './src/i18n';
 import React, { useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, NavigationContainer, Theme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -24,6 +24,12 @@ import BigClockScreen from './src/screens/clock/BigClockScreen';
 import WeatherSettingsScreen from './src/screens/weather/WeatherSettingsScreen';
 import TabBar from './src/components/TabBar';
 import { HomeStackParamList, RootStackParamList } from './src/navigation';
+import { colors } from './src/theme';
+
+const navigationTheme: Theme = {
+  ...DarkTheme,
+  colors: { ...DarkTheme.colors, background: colors.gradientTop, card: colors.gradientTop },
+};
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
@@ -62,8 +68,8 @@ export default function App() {
           <AudioProvider>
             <PomodoroProvider>
               <WeatherProvider>
-                <StatusBar style="dark" />
-                <NavigationContainer>
+                <StatusBar style="light" />
+                <NavigationContainer theme={navigationTheme}>
                   <RootStack.Navigator screenOptions={{ headerShown: false, orientation: 'portrait' }}>
                     <RootStack.Screen name="MainTabs" component={MainTabs} />
                     <RootStack.Screen name="BreathingDetail" component={BreathingDetailScreen} />

@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...shadow,
   },
-  startText: { color: colors.textOnAccent, fontSize: fontSize.subtitle, fontWeight: '700' },
+  startText: { color: colors.textOnColor, fontSize: fontSize.subtitle, fontWeight: '700' },
   progressTrack: {
     position: 'absolute',
     left: 0,
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: 'rgba(255,255,255,0.3)',
   },
-  progressFill: { height: '100%', backgroundColor: colors.textOnAccent },
+  progressFill: { height: '100%', backgroundColor: colors.textOnColor },
   descCard: { marginTop: 32, alignSelf: 'stretch' },
   descText: { color: colors.textSecondary, fontSize: fontSize.body, lineHeight: 22 },
 });

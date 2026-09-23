@@ -12,10 +12,10 @@ export interface BreathingMethod {
 }
 
 export const BREATHING_METHODS: BreathingMethod[] = [
-  { id: 'sleep_478', inhale: 4, hold: 7, exhale: 8, holdAfter: 0, defaultDurationMinutes: 10, isPrimary: true, color: '#5C6BC0' },
-  { id: 'box_4444', inhale: 4, hold: 4, exhale: 4, holdAfter: 4, defaultDurationMinutes: 5, isPrimary: false, color: '#26A69A' },
-  { id: 'belly_46', inhale: 4, hold: 0, exhale: 6, holdAfter: 0, defaultDurationMinutes: 5, isPrimary: false, color: '#66BB6A' },
-  { id: 'stress_426', inhale: 4, hold: 2, exhale: 6, holdAfter: 0, defaultDurationMinutes: 5, isPrimary: false, color: '#FF8A65' },
+  { id: 'sleep_478', inhale: 4, hold: 7, exhale: 8, holdAfter: 0, defaultDurationMinutes: 10, isPrimary: true, color: '#5A5F8A' },
+  { id: 'box_4444', inhale: 4, hold: 4, exhale: 4, holdAfter: 4, defaultDurationMinutes: 5, isPrimary: false, color: '#3F7F76' },
+  { id: 'belly_46', inhale: 4, hold: 0, exhale: 6, holdAfter: 0, defaultDurationMinutes: 5, isPrimary: false, color: '#5E7F52' },
+  { id: 'stress_426', inhale: 4, hold: 2, exhale: 6, holdAfter: 0, defaultDurationMinutes: 5, isPrimary: false, color: '#B06F4E' },
 ];
 
 export const DURATION_PRESETS = [2, 5, 8, 10, 15, 20];

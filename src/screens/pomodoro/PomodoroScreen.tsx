@@ -12,7 +12,7 @@ import { POMODORO_MAX_MINUTES, POMODORO_MIN_MINUTES, usePomodoro } from '../../c
 import { RootScreenProps } from '../../navigation';
 import { colors, fontSize, radii, shadow } from '../../theme';
 
-const BREAK_COLOR = '#3FA796';
+const BREAK_COLOR = '#5E8F80';
 const RING_SIZE = 260;
 const KEEP_AWAKE_TAG = 'pomodoro';
 
@@ -49,6 +49,7 @@ export default function PomodoroScreen({ navigation }: RootScreenProps<'Pomodoro
 
   const isBreak = phase === 'break';
   const color = isBreak ? BREAK_COLOR : colors.accent;
+  const onColor = isBreak ? colors.textOnColor : colors.textOnAccent;
   const progress = totalMs > 0 ? remainingMs / totalMs : 1;
 
   useEffect(() => {
@@ -125,7 +126,7 @@ export default function PomodoroScreen({ navigation }: RootScreenProps<'Pomodoro
 
         {awaitingBreakStart ? (
           <TouchableOpacity style={[styles.breakBtn, { backgroundColor: BREAK_COLOR }]} onPress={start} activeOpacity={0.85}>
-            <Play size={18} color={colors.textOnAccent} fill={colors.textOnAccent} />
+            <Play size={18} color={colors.textOnColor} fill={colors.textOnColor} />
             <Text style={styles.breakBtnText}>{t('startBreak')}</Text>
           </TouchableOpacity>
         ) : (
@@ -140,9 +141,9 @@ export default function PomodoroScreen({ navigation }: RootScreenProps<'Pomodoro
               accessibilityLabel={running ? t('pause') : t('start')}
             >
               {running ? (
-                <Pause size={36} color={colors.textOnAccent} fill={colors.textOnAccent} />
+                <Pause size={36} color={onColor} fill={onColor} />
               ) : (
-                <Play size={36} color={colors.textOnAccent} fill={colors.textOnAccent} />
+                <Play size={36} color={onColor} fill={onColor} />
               )}
             </TouchableOpacity>
             {isBreak ? (
@@ -230,5 +231,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     ...shadow,
   },
-  breakBtnText: { color: colors.textOnAccent, fontSize: fontSize.subtitle, fontWeight: '700' },
+  breakBtnText: { color: colors.textOnColor, fontSize: fontSize.subtitle, fontWeight: '700' },
 });

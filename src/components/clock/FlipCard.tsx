@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   face: { alignItems: 'center', justifyContent: 'center' },
   digits: { color: colors.textPrimary, textAlign: 'center', includeFontPadding: false },
   flap: { position: 'absolute', left: 0, backfaceVisibility: 'hidden' },
-  seam: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: 'rgba(43, 58, 103, 0.08)' },
+  seam: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: 'rgba(0, 0, 0, 0.25)' },
   corner: { position: 'absolute', right: '6%', bottom: '5%', color: colors.textPrimary },
   badge: { position: 'absolute', left: '7%', top: '6%', color: colors.textSecondary },
 });

@@ -12,34 +12,38 @@ import {
 } from 'lucide-react-native';
 
 export const colors = {
-  // Background gradient (top -> bottom)
-  gradientTop: '#A9D2FB',
-  gradientBottom: '#E7F1FF',
+  // Background gradient (top -> bottom); warm charcoal instead of pure black to soften contrast at night
+  gradientTop: '#16130F',
+  gradientBottom: '#211C17',
 
-  accent: '#4A90E2',
-  accentDark: '#3B73C4',
+  accent: '#D4A373',
+  accentDark: '#B8895C',
 
   // Frosted glass surfaces
-  glass: 'rgba(255, 255, 255, 0.65)',
-  glassStrong: 'rgba(255, 255, 255, 0.85)',
-  glassBorder: 'rgba(255, 255, 255, 0.8)',
+  glass: 'rgba(58, 50, 42, 0.55)',
+  glassStrong: 'rgba(46, 40, 34, 0.94)',
+  glassBorder: 'rgba(255, 236, 210, 0.07)',
 
-  textPrimary: '#2B3A67',
-  textSecondary: '#7E8BB0',
-  textOnAccent: '#FFFFFF',
+  textPrimary: '#E8DDCB',
+  textSecondary: '#9C8F7C',
+  textOnAccent: '#221C16',
+  // Light text for saturated fills that aren't the accent (breathing methods, pomodoro break)
+  textOnColor: '#F3EADB',
 
-  danger: '#E2654A',
-  trackInactive: 'rgba(43, 58, 103, 0.12)',
+  danger: '#D0785E',
+  trackInactive: 'rgba(232, 221, 203, 0.12)',
+  overlay: 'rgba(0, 0, 0, 0.55)',
+  iconSurface: 'rgba(0, 0, 0, 0.18)',
 
-  // Soft pastel fills for accents / category chips
-  pastelPink: '#F8C7D8',
-  pastelPeach: '#FAD9B6',
-  pastelMint: '#C5EAD4',
-  pastelLavender: '#DACBF3',
-  pastelSky: '#C3DDFB',
-  pastelTeal: '#BCE7E2',
-  pastelSlate: '#C9D4EC',
-  pastelIndigo: '#C7CBF5',
+  // Muted dark fills for category chips / covers
+  pastelPink: '#4A3438',
+  pastelPeach: '#4D3C2C',
+  pastelMint: '#34443A',
+  pastelLavender: '#3E3848',
+  pastelSky: '#2F3F45',
+  pastelTeal: '#2E4340',
+  pastelSlate: '#3D3A35',
+  pastelIndigo: '#363850',
 };
 
 export const radii = {
@@ -71,7 +75,7 @@ export const fontSize = {
 // boxShadow instead of Android elevation: elevation paints under the whole view,
 // so it bleeds through translucent glass backgrounds.
 export const shadow = {
-  boxShadow: '0px 8px 16px rgba(58, 90, 155, 0.18)',
+  boxShadow: '0px 8px 20px rgba(0, 0, 0, 0.35)',
 };
 
 export interface CategoryStyle {

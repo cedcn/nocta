@@ -87,7 +87,7 @@ export default function ClockCountdownDialog({ visible, onClose, onStart }: Prop
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(43, 58, 103, 0.35)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  backdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', padding: 24 },
   dialog: { padding: 20, width: 320, maxWidth: '100%' },
   title: { fontSize: fontSize.subtitle, fontWeight: '700', color: colors.textPrimary, marginBottom: 14 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
