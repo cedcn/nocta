@@ -7,6 +7,10 @@
 #   bundle exec fastlane android release aab:<path>              # upload an already built aab
 #   bundle exec fastlane android promote from:internal to:production
 #
+# status: completed (default) / inProgress (implied by rollout) / draft / halted. Until the app's
+# first release passes review, Play is a "draft app" and every track except internal only takes
+# draft releases; that rejection is retried once as a draft, finish it in Play Console.
+#
 # fastlane deliberately does not call gradle itself: the script owns prebuild, the signing guard
 # (without it a release build silently falls back to the debug keystore) and the signature check.
 
@@ -22,6 +26,8 @@ PACKAGE_NAME = CredentialsManager::AppfileConfig.try_fetch_value(:package_name)
 
 # versionCodes are unique across the whole app, so all tracks count when picking the next one
 TRACKS = %w[internal alpha beta production].freeze
+
+RELEASE_STATUSES = %w[completed inProgress draft halted].freeze
 
 # CI uses GOOGLE_PLAY_JSON_KEY_DATA (the JSON contents); locally a git-ignored file
 DEFAULT_JSON_KEY = File.join(PROJECT_ROOT, 'config/play-store/play-store-service-account.json')
@@ -53,6 +59,7 @@ platform :android do
     UI.user_error!("duplicate track in #{tracks.join(',')}") unless tracks.uniq.length == tracks.length
 
     rollout = options[:rollout]
+    status = release_status(options)
     creds = play_credentials
 
     if options[:aab]
@@ -69,8 +76,8 @@ platform :android do
     # first track and promote the same versionCode onto the rest.
     primary, *extra = tracks
 
-    upload_to_play_store(**upload_options(creds, rollout).merge(track: primary, aab: aab))
-    UI.success("#{File.basename(aab)} → #{primary}")
+    used = upload_with_draft_fallback(upload_options(creds, rollout, status).merge(track: primary, aab: aab))
+    UI.success("#{File.basename(aab)} → #{primary} (#{used})")
 
     # Not `return if extra.empty?`: a lane block is a Proc and `return` raises LocalJumpError
     unless extra.empty?
@@ -78,8 +85,8 @@ platform :android do
       UI.user_error!("no versionCode on #{primary}; promote the remaining tracks manually") if version_code.nil?
 
       extra.each do |target|
-        upload_to_play_store(**promote_options(creds, rollout, primary, target, version_code))
-        UI.success("versionCode #{version_code}: #{primary} → #{target}")
+        used = upload_with_draft_fallback(promote_options(creds, rollout, status, primary, target, version_code))
+        UI.success("versionCode #{version_code}: #{primary} → #{target} (#{used})")
       end
     end
   end
@@ -88,14 +95,15 @@ platform :android do
   lane :promote do |options|
     from = options[:from] || 'internal'
     to = options[:to] || 'production'
+    status = release_status(options)
     creds = play_credentials
 
     # Rebuilding would ship a different binary than the one that was tested
     version_code = options[:version_code] || track_version_codes(from, creds).max
     UI.user_error!("nothing to promote on #{from}") if version_code.nil?
 
-    upload_to_play_store(**promote_options(creds, options[:rollout], from, to, version_code))
-    UI.success("versionCode #{version_code}: #{from} → #{to}")
+    used = upload_with_draft_fallback(promote_options(creds, options[:rollout], status, from, to, version_code))
+    UI.success("versionCode #{version_code}: #{from} → #{to} (#{used})")
   end
 
   private_lane :play_credentials do
@@ -119,11 +127,19 @@ platform :android do
   end
 end
 
-def upload_options(creds, rollout)
+# rollout only makes sense for inProgress (or a draft of one); Play rejects it on a completed release
+def release_status(options)
+  status = options[:status] ? String(options[:status]) : (options[:rollout] ? 'inProgress' : 'completed')
+  UI.user_error!("unknown status #{status}, expected #{RELEASE_STATUSES.join(' / ')}") unless RELEASE_STATUSES.include?(status)
+  UI.user_error!("rollout does not apply to status #{status}") if options[:rollout] && %w[completed halted].include?(status)
+
+  status
+end
+
+def upload_options(creds, rollout, status)
   creds.merge(
     package_name: PACKAGE_NAME,
-    # rollout only makes sense for inProgress; Play rejects a rollout on a completed release
-    release_status: rollout ? 'inProgress' : 'completed',
+    release_status: status,
     skip_upload_metadata: true,
     skip_upload_images: true,
     skip_upload_screenshots: true,
@@ -131,14 +147,36 @@ def upload_options(creds, rollout)
   ).merge(rollout ? { rollout: rollout.to_s } : {})
 end
 
-def promote_options(creds, rollout, from, to, version_code)
-  upload_options(creds, rollout).merge(
+def promote_options(creds, rollout, status, from, to, version_code)
+  upload_options(creds, rollout, status).merge(
     track: from,
     track_promote_to: to,
+    # supply ignores release_status for the target release and reads this instead
+    track_promote_release_status: status,
     version_code: version_code.to_i,
     skip_upload_apk: true,
     skip_upload_aab: true
   )
+end
+
+DRAFT_APP_ERROR = 'Only releases with status draft may be created on draft app'
+
+# Returns the release status that was actually applied
+def upload_with_draft_fallback(options)
+  upload_to_play_store(**options)
+  options[:track_promote_to] ? options[:track_promote_release_status] : options[:release_status]
+rescue StandardError => e
+  # A draft release cannot carry a rollout, so there is nothing sensible to fall back to
+  raise unless e.message.include?(DRAFT_APP_ERROR) && options[:release_status] != 'draft' && !options[:rollout]
+
+  target = options[:track_promote_to] || options[:track]
+  UI.important("#{PACKAGE_NAME} is still a draft app on Play: retrying #{target} as a draft release")
+  UI.important("Finish it in Play Console → #{target} to send it for review")
+
+  upload_to_play_store(**options.merge(release_status: 'draft').merge(
+    options[:track_promote_to] ? { track_promote_release_status: 'draft' } : {}
+  ))
+  'draft'
 end
 
 def play_version_codes(creds)
