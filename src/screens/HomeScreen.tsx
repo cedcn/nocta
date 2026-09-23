@@ -1,22 +1,36 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { Moon, User, Play, Pause } from 'lucide-react-native';
+import { Moon, Sun, Sunrise, Timer, Play, Pause } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAudio } from '../context/AudioContext';
-import { getAllCategories, getSoundsByCategory } from '../data/sounds';
+import { getAllCategories, getSoundsByCategory, useSoundsManifest } from '../data/sounds';
+import { useLocalizedName } from '../i18n/LanguageProvider';
 import ScreenBackground from '../components/ScreenBackground';
 import GlassCard from '../components/GlassCard';
 import CategoryCard from '../components/CategoryCard';
+import WeatherCard from '../components/weather/WeatherCard';
 import { colors, radii, fontSize, shadow, getCategoryStyle } from '../theme';
-import { HomeMainProps } from '../navigation';
+import { HomeMainProps, useRootNavigation } from '../navigation';
 
 // Surface a recommended sound on the hero card (falls back to the first sound)
 const FEATURED_ID = 'rain';
 
+const greetingFor = (hour: number) => {
+  if (hour >= 5 && hour < 12) return { key: 'home.greetingMorning', Icon: Sunrise } as const;
+  if (hour >= 12 && hour < 18) return { key: 'home.greetingAfternoon', Icon: Sun } as const;
+  return { key: 'home.greetingEvening', Icon: Moon } as const;
+};
+
 export default function HomeScreen({ navigation }: HomeMainProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const localizedName = useLocalizedName();
+  const rootNavigation = useRootNavigation();
   const { playingSounds, toggleSound, timer, timerRemaining } = useAudio();
+  useSoundsManifest();
   const categories = getAllCategories();
+  const greeting = greetingFor(new Date().getHours());
 
   const featured = getSoundsByCategory('rain')[0] ?? getSoundsByCategory(categories[0].id)[0];
   const featuredPlaying = featured ? playingSounds.some((p) => p.id === featured.id) : false;
@@ -32,16 +46,18 @@ export default function HomeScreen({ navigation }: HomeMainProps) {
       >
         <View style={styles.topBar}>
           <View style={styles.greetingPill}>
-            <Moon size={16} color={colors.textOnAccent} />
-            <Text style={styles.greetingText}>Good evening</Text>
+            <greeting.Icon size={16} color={colors.textOnAccent} />
+            <Text style={styles.greetingText}>{t(greeting.key)}</Text>
           </View>
-          <View style={styles.avatar}>
-            <User size={20} color={colors.textOnAccent} />
-          </View>
+          <TouchableOpacity style={styles.avatar} onPress={() => rootNavigation.navigate('Pomodoro')} activeOpacity={0.8}>
+            <Timer size={20} color={colors.textOnAccent} />
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.brand}>Nocta</Text>
-        <Text style={styles.brandSub}>Sleep Sounds</Text>
+        <Text style={styles.brandSub}>{t('home.brandSub')}</Text>
+
+        <WeatherCard />
 
         {featured && (
           <GlassCard strong style={styles.hero}>
@@ -50,8 +66,8 @@ export default function HomeScreen({ navigation }: HomeMainProps) {
                 <FeaturedIcon size={32} color={colors.accent} />
               </View>
               <View style={styles.heroTexts}>
-                <Text style={styles.heroLabel}>Featured</Text>
-                <Text style={styles.heroTitle}>{featured.nameEn || featured.name}</Text>
+                <Text style={styles.heroLabel}>{t('home.featured')}</Text>
+                <Text style={styles.heroTitle}>{localizedName(featured)}</Text>
               </View>
               <TouchableOpacity
                 style={styles.playBtn}
@@ -63,7 +79,7 @@ export default function HomeScreen({ navigation }: HomeMainProps) {
                 ) : (
                   <Play size={16} color={colors.textOnAccent} />
                 )}
-                <Text style={styles.playText}>{featuredPlaying ? 'Pause' : 'Play'}</Text>
+                <Text style={styles.playText}>{featuredPlaying ? t('actions.pause') : t('actions.play')}</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.progressTrack}>
@@ -72,7 +88,7 @@ export default function HomeScreen({ navigation }: HomeMainProps) {
           </GlassCard>
         )}
 
-        <Text style={styles.sectionTitle}>Category</Text>
+        <Text style={styles.sectionTitle}>{t('home.category')}</Text>
         <View style={styles.grid}>
           {categories.map((cat) => (
             <CategoryCard

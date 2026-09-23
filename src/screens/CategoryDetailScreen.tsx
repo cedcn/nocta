@@ -1,30 +1,24 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { ArrowLeft, User } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAudio } from '../context/AudioContext';
-import { getAllCategories, getSoundsByCategory } from '../data/sounds';
+import { getAllCategories, getSoundsByCategory, useSoundsManifest } from '../data/sounds';
+import { useLocalizedName } from '../i18n/LanguageProvider';
 import ScreenBackground from '../components/ScreenBackground';
 import GlassCard from '../components/GlassCard';
 import SoundRow from '../components/SoundRow';
 import { colors, radii, fontSize, shadow, getCategoryStyle } from '../theme';
 import { CategoryDetailProps } from '../navigation';
 
-const DESCRIPTIONS: Record<string, string> = {
-  nature: 'Drift off with the calm of the outdoors',
-  rain: 'Soft rainfall to quiet a busy mind',
-  animals: 'Gentle living sounds for deep rest',
-  urban: 'The familiar hum of the city at night',
-  places: 'Cozy ambiences to feel at ease',
-  transport: 'Steady rhythms that lull you to sleep',
-  things: 'Soothing everyday textures and hums',
-  noise: 'Pure noise to mask the world away',
-};
-
 export default function CategoryDetailScreen({ route, navigation }: CategoryDetailProps) {
   const [activeId, setActiveId] = useState(route.params.categoryId);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const localizedName = useLocalizedName();
   const { playingSounds } = useAudio();
+  useSoundsManifest();
 
   const categories = getAllCategories();
   const category = categories.find((c) => c.id === activeId) ?? categories[0];
@@ -37,9 +31,6 @@ export default function CategoryDetailScreen({ route, navigation }: CategoryDeta
         <TouchableOpacity style={styles.circleBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <ArrowLeft size={22} color={colors.textOnAccent} />
         </TouchableOpacity>
-        <View style={styles.avatar}>
-          <User size={20} color={colors.textOnAccent} />
-        </View>
       </View>
 
       <ScrollView
@@ -50,11 +41,11 @@ export default function CategoryDetailScreen({ route, navigation }: CategoryDeta
           <GlassCard strong style={styles.heroBadge}>
             <HeroIcon size={48} color={colors.accent} />
           </GlassCard>
-          <Text style={styles.title}>{category.nameEn || category.name}</Text>
-          <Text style={styles.subtitle}>{DESCRIPTIONS[category.id] ?? 'Sounds to help you sleep'}</Text>
+          <Text style={styles.title}>{localizedName(category)}</Text>
+          <Text style={styles.subtitle}>{t(`categoryDesc.${category.id}`, { defaultValue: t('categoryDesc.default') })}</Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Categories</Text>
+        <Text style={styles.sectionTitle}>{t('categoryDetail.categories')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
           {categories.map((cat) => (
             <TouchableOpacity
@@ -64,13 +55,13 @@ export default function CategoryDetailScreen({ route, navigation }: CategoryDeta
               activeOpacity={0.8}
             >
               <Text style={[styles.chipText, cat.id === category.id && styles.chipTextActive]}>
-                {cat.nameEn || cat.name}
+                {localizedName(cat)}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        <Text style={styles.sectionTitle}>Sounds</Text>
+        <Text style={styles.sectionTitle}>{t('categoryDetail.sounds')}</Text>
         {sounds.map((sound) => (
           <SoundRow key={sound.id} sound={sound} isPlaying={playingSounds.some((p) => p.id === sound.id)} />
         ))}
@@ -88,15 +79,6 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   circleBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.pill,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow,
-  },
-  avatar: {
     width: 44,
     height: 44,
     borderRadius: radii.pill,

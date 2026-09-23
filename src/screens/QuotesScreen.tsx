@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Share } from 'rea
 import { Sparkles, Share2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import quotesData from '../data/quotes.json';
 import { Quote } from '../types';
 import ScreenBackground from '../components/ScreenBackground';
@@ -12,6 +13,7 @@ import { colors, radii, fontSize, shadow } from '../theme';
 export default function QuotesScreen() {
   const [dailyQuote, setDailyQuote] = useState<Quote | null>(null);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const quotes = (quotesData as { quotes: Quote[] }).quotes;
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export default function QuotesScreen() {
   return (
     <ScreenBackground>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.title}>Daily Quote</Text>
+        <Text style={styles.title}>{t('quotes.title')}</Text>
       </View>
 
       <ScrollView
@@ -49,11 +51,11 @@ export default function QuotesScreen() {
           {dailyQuote.from && <Text style={styles.quoteFrom}>{dailyQuote.from}</Text>}
           <TouchableOpacity style={styles.shareButton} onPress={shareQuote} activeOpacity={0.85}>
             <Share2 size={18} color={colors.accent} />
-            <Text style={styles.shareButtonText}>Share</Text>
+            <Text style={styles.shareButtonText}>{t('quotes.share')}</Text>
           </TouchableOpacity>
         </LinearGradient>
 
-        <Text style={styles.sectionTitle}>All Quotes</Text>
+        <Text style={styles.sectionTitle}>{t('quotes.all')}</Text>
         {quotes.map((quote) => (
           <GlassCard key={quote.id} style={styles.quoteItem}>
             <Text style={styles.quoteItemText}>"{quote.text}"</Text>

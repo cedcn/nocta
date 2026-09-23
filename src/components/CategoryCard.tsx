@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SoundCategory } from '../types';
+import { useLocalizedName } from '../i18n/LanguageProvider';
 import { colors, radii, fontSize, shadow, getCategoryStyle } from '../theme';
 
 interface CategoryCardProps {
@@ -10,6 +12,8 @@ interface CategoryCardProps {
 }
 
 export default function CategoryCard({ category, count, onPress }: CategoryCardProps) {
+  const { t } = useTranslation();
+  const localizedName = useLocalizedName();
   const { icon: Icon, color } = getCategoryStyle(category.id);
 
   return (
@@ -17,8 +21,8 @@ export default function CategoryCard({ category, count, onPress }: CategoryCardP
       <View style={styles.iconCircle}>
         <Icon size={26} color={colors.textPrimary} />
       </View>
-      <Text style={styles.name}>{category.nameEn || category.name}</Text>
-      <Text style={styles.count}>{count} Sounds</Text>
+      <Text style={styles.name}>{localizedName(category)}</Text>
+      <Text style={styles.count}>{t('home.soundsCount', { count })}</Text>
     </TouchableOpacity>
   );
 }

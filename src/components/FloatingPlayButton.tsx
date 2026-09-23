@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { ChevronUp, ChevronDown } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useAudio } from '../context/AudioContext';
+import { useLocalizedName } from '../i18n/LanguageProvider';
 import { getSoundById } from '../data/sounds';
 import GlassCard from './GlassCard';
 import { colors, radii, fontSize, shadow } from '../theme';
 
 export default function FloatingPlayButton() {
+  const { t } = useTranslation();
+  const localizedName = useLocalizedName();
   const { playingSounds, stopAll } = useAudio();
   const [expanded, setExpanded] = useState(false);
 
@@ -17,16 +21,16 @@ export default function FloatingPlayButton() {
       {expanded && (
         <GlassCard strong style={styles.expandedView}>
           <View style={styles.header}>
-            <Text style={styles.headerText}>Playing ({playingSounds.length})</Text>
+            <Text style={styles.headerText}>{t('player.playingTitle', { count: playingSounds.length })}</Text>
             <TouchableOpacity onPress={stopAll} activeOpacity={0.7}>
-              <Text style={styles.stopText}>Stop All</Text>
+              <Text style={styles.stopText}>{t('actions.stopAll')}</Text>
             </TouchableOpacity>
           </View>
           {playingSounds.map((ps) => {
             const sound = getSoundById(ps.id);
             return (
               <View key={ps.id} style={styles.soundItem}>
-                <Text style={styles.soundName}>{sound?.nameEn || sound?.name}</Text>
+                <Text style={styles.soundName}>{sound ? localizedName(sound) : ps.id}</Text>
                 <Text style={styles.volumeText}>{Math.round(ps.volume * 100)}%</Text>
               </View>
             );
@@ -39,7 +43,7 @@ export default function FloatingPlayButton() {
         ) : (
           <ChevronUp size={18} color={colors.textOnAccent} />
         )}
-        <Text style={styles.buttonText}>{playingSounds.length} playing</Text>
+        <Text style={styles.buttonText}>{t('player.playingCount', { count: playingSounds.length })}</Text>
       </TouchableOpacity>
     </View>
   );

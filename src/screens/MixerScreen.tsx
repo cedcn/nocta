@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Square } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAudio } from '../context/AudioContext';
-import { getAllCategories, getSoundsByCategory } from '../data/sounds';
+import { getAllCategories, getSoundsByCategory, useSoundsManifest } from '../data/sounds';
+import { useLocalizedName } from '../i18n/LanguageProvider';
 import ScreenBackground from '../components/ScreenBackground';
 import SoundRow from '../components/SoundRow';
 import PresetBar from '../components/PresetBar';
@@ -14,6 +16,9 @@ import { colors, radii, fontSize } from '../theme';
 export default function MixerScreen() {
   const [selectedCategory, setSelectedCategory] = useState('nature');
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const localizedName = useLocalizedName();
+  useSoundsManifest();
   const categories = getAllCategories();
   const sounds = getSoundsByCategory(selectedCategory);
   const { playingSounds, stopAll } = useAudio();
@@ -21,11 +26,11 @@ export default function MixerScreen() {
   return (
     <ScreenBackground>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.title}>Mixer</Text>
+        <Text style={styles.title}>{t('mixer.title')}</Text>
         {playingSounds.length > 0 && (
           <TouchableOpacity style={styles.stopButton} onPress={stopAll} activeOpacity={0.8}>
             <Square size={14} color={colors.textOnAccent} fill={colors.textOnAccent} />
-            <Text style={styles.stopButtonText}>Stop All</Text>
+            <Text style={styles.stopButtonText}>{t('actions.stopAll')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -46,7 +51,7 @@ export default function MixerScreen() {
               activeOpacity={0.8}
             >
               <Text style={[styles.chipText, selectedCategory === cat.id && styles.chipTextActive]}>
-                {cat.nameEn || cat.name}
+                {localizedName(cat)}
               </Text>
             </TouchableOpacity>
           ))}

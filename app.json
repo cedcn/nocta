@@ -3,7 +3,7 @@
     "name": "nocta",
     "slug": "nocta",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
@@ -15,7 +15,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.nocta.app",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -29,7 +31,14 @@
       "versionCode": 3,
       "compileSdkVersion": 36,
       "targetSdkVersion": 36,
-      "buildToolsVersion": "36.0.0"
+      "buildToolsVersion": "36.0.0",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "VIBRATE"
+      ],
+      "blockedPermissions": [
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -49,9 +58,39 @@
             ],
             "extraProguardRules": "",
             "packagingOptions": {
-              "pickFirst": ["**/libc++_shared.so"]
+              "pickFirst": [
+                "**/libc++_shared.so"
+              ]
             }
           }
+        }
+      ],
+      "expo-localization",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Nocta uses your approximate location to recommend sounds that match the local weather."
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/ringtones/chime.m4a",
+            "./assets/ringtones/ding.m4a",
+            "./assets/ringtones/marimba.m4a",
+            "./assets/ringtones/windchime.m4a"
+          ]
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/BebasNeue.ttf",
+            "./assets/fonts/OswaldBold.ttf"
+          ]
         }
       ]
     ]

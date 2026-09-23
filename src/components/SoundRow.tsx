@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Heart, Play, Pause } from 'lucide-react-native';
+import { Play, Pause } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import Slider from '@react-native-community/slider';
 import { useAudio } from '../context/AudioContext';
+import { useLocalizedName } from '../i18n/LanguageProvider';
 import { SoundMetadata } from '../types';
 import { colors, radii, fontSize, shadow, getCategoryStyle } from '../theme';
 
@@ -12,9 +14,10 @@ interface SoundRowProps {
 }
 
 export default function SoundRow({ sound, isPlaying }: SoundRowProps) {
-  const { toggleSound, setVolume, getVolume, toggleFavorite, isFavorite } = useAudio();
+  const { t } = useTranslation();
+  const localizedName = useLocalizedName();
+  const { toggleSound, setVolume, getVolume } = useAudio();
   const volume = getVolume(sound.id);
-  const favorite = isFavorite(sound.id);
   const { icon: Icon, color } = getCategoryStyle(sound.category);
 
   return (
@@ -24,17 +27,10 @@ export default function SoundRow({ sound, isPlaying }: SoundRowProps) {
           <Icon size={22} color={colors.textPrimary} />
         </View>
         <View style={styles.texts}>
-          <Text style={styles.name}>{sound.nameEn || sound.name}</Text>
-          <Text style={styles.sub}>{isPlaying ? `Playing · ${Math.round(volume * 100)}%` : 'Tap to play'}</Text>
+          <Text style={styles.name}>{localizedName(sound)}</Text>
+          <Text style={styles.sub}>{isPlaying ? t('sound.playingVolume', { volume: Math.round(volume * 100) }) : t('sound.tapToPlay')}</Text>
         </View>
         <View style={styles.actions}>
-          <TouchableOpacity onPress={() => toggleFavorite(sound.id)} hitSlop={8}>
-            <Heart
-              size={20}
-              color={favorite ? colors.danger : colors.textSecondary}
-              fill={favorite ? colors.danger : 'transparent'}
-            />
-          </TouchableOpacity>
           <View style={[styles.playBadge, isPlaying && styles.playBadgeActive]}>
             {isPlaying ? (
               <Pause size={16} color={colors.textOnAccent} />

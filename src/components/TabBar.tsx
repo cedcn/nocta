@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Home, Music, Heart, MessageCircle, Settings, LucideIcon } from 'lucide-react-native';
+import { Home, Music, Wind, MessageCircle, Settings, LucideIcon } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { colors, radii, shadow, fontSize } from '../theme';
@@ -8,13 +9,14 @@ import { colors, radii, shadow, fontSize } from '../theme';
 const ICONS: Record<string, LucideIcon> = {
   Home,
   Mixer: Music,
-  Favorites: Heart,
+  Breathing: Wind,
   Quotes: MessageCircle,
   Settings,
 };
 
 export default function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   return (
     <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 12) }]} pointerEvents="box-none">
@@ -33,7 +35,11 @@ export default function TabBar({ state, navigation }: BottomTabBarProps) {
               <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
                 <Icon size={22} color={focused ? colors.textOnAccent : colors.textSecondary} />
               </View>
-              {focused && <Text style={styles.label}>{route.name}</Text>}
+              {focused && (
+                <Text style={styles.label} numberOfLines={1}>
+                  {t(`tabs.${route.name}`, { defaultValue: route.name })}
+                </Text>
+              )}
             </TouchableOpacity>
           );
         })}

@@ -7,6 +7,9 @@ export interface SoundMetadata {
   name: string;
   nameEn?: string;
   nameZhTW?: string;
+  nameKo?: string;
+  nameJa?: string;
+  nameRu?: string;
   category: string;
   icon?: string;
   source?: AudioSource;
@@ -24,6 +27,9 @@ export interface SoundCategory {
   name: string;
   nameEn?: string;
   nameZhTW?: string;
+  nameKo?: string;
+  nameJa?: string;
+  nameRu?: string;
   icon?: string;
   order: number;
 }
@@ -53,9 +59,4 @@ export interface Quote {
   author: string;
   from?: string;
   category: string;
-}
-
-export interface FavoriteSound {
-  soundId: string;
-  addedAt: number;
 }
