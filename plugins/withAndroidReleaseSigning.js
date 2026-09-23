@@ -1,8 +1,4 @@
-const {
-  withAppBuildGradle,
-  createRunOncePlugin,
-  WarningAggregator,
-} = require("expo/config-plugins");
+const { withAppBuildGradle, createRunOncePlugin } = require("expo/config-plugins");
 
 const PROJECT_ROOT_LINE =
   "def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()";
@@ -83,12 +79,12 @@ function withAndroidReleaseSigning(config) {
       contents = contents.replace(LEGACY_KEYSTORE_BLOCK, "\n");
     }
 
+    // Fail prebuild instead of warning: a warning scrolls by and leaves a release build signed
+    // with the debug keystore, which installs fine and only gets rejected by Play.
     if (!contents.includes(PROJECT_ROOT_LINE)) {
-      WarningAggregator.addWarningAndroid(
-        "nocta-release-signing",
-        "Could not inject release signing: unexpected app/build.gradle layout.",
+      throw new Error(
+        "withAndroidReleaseSigning: unexpected app/build.gradle layout, cannot inject release signing.",
       );
-      return cfg;
     }
 
     if (!contents.includes("def noctaRepoRoot = rootProject.projectDir")) {
@@ -112,11 +108,9 @@ function withAndroidReleaseSigning(config) {
     if (
       !contents.includes("noctaReleaseSigningReady ? signingConfigs.release")
     ) {
-      WarningAggregator.addWarningAndroid(
-        "nocta-release-signing",
-        "Could not inject release signing: signingConfigs / release block changed. Update plugins/withAndroidReleaseSigning.js.",
+      throw new Error(
+        "withAndroidReleaseSigning: signingConfigs / release block changed. Update plugins/withAndroidReleaseSigning.js.",
       );
-      return cfg;
     }
 
     cfg.modResults.contents = contents;

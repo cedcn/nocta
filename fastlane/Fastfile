@@ -1,68 +1,208 @@
+# Nocta Android release: upload the aab built by scripts/release-android.sh to Google Play.
+#
+#   bundle exec fastlane android doctor    # no build: check credentials, print each track's versionCode
+#   bundle exec fastlane android release   # build + upload to internal (default)
+#   bundle exec fastlane android release track:internal,alpha   # one binary on both tracks
+#   bundle exec fastlane android release track:production rollout:0.1
+#   bundle exec fastlane android release aab:<path>              # upload an already built aab
+#   bundle exec fastlane android promote from:internal to:production
+#
+# fastlane deliberately does not call gradle itself: the script owns prebuild, the signing guard
+# (without it a release build silently falls back to the debug keystore) and the signature check.
+
+require 'json'
+require 'tmpdir'
+
 default_platform(:android)
 
+# fastlane's `sh` runs inside fastlane/, so build every path from here
+PROJECT_ROOT = File.expand_path('..', File.dirname(__FILE__))
+
+PACKAGE_NAME = CredentialsManager::AppfileConfig.try_fetch_value(:package_name)
+
+# versionCodes are unique across the whole app, so all tracks count when picking the next one
+TRACKS = %w[internal alpha beta production].freeze
+
+# CI uses GOOGLE_PLAY_JSON_KEY_DATA (the JSON contents); locally a git-ignored file
+DEFAULT_JSON_KEY = File.join(PROJECT_ROOT, 'config/play-store/play-store-service-account.json')
+
 platform :android do
-  desc "Build release AAB"
-  lane :build do
-    Dir.chdir("..") do
-      sh("npx", "expo", "prebuild", "--platform", "android", "--clean")
+  desc 'No build: validate Play credentials and print each track\'s versionCode'
+  lane :doctor do
+    creds = play_credentials
+
+    # It rescues its own errors and never fails the lane; the track query below is the real gate.
+    validate_play_store_json_key(**creds)
+
+    UI.important("package  #{PACKAGE_NAME}")
+    codes = play_version_codes(creds)
+    codes.each do |track, list|
+      UI.message("#{track.ljust(12)} #{list.empty? ? '—' : list.sort.join(', ')}")
+    end
+    UI.message("local        #{local_version_code}")
+
+    UI.success("next versionCode: #{next_version_code(codes)}")
+  end
+
+  desc 'Build and upload (internal by default; track accepts a comma-separated list)'
+  lane :release do |options|
+    tracks = String(options[:track] || 'internal').split(',').map(&:strip).reject(&:empty?)
+    UI.user_error!('track must not be empty') if tracks.empty?
+    unknown = tracks - TRACKS
+    UI.user_error!("unknown track #{unknown.join(', ')}, expected #{TRACKS.join(' / ')}") unless unknown.empty?
+    UI.user_error!("duplicate track in #{tracks.join(',')}") unless tracks.uniq.length == tracks.length
+
+    rollout = options[:rollout]
+    creds = play_credentials
+
+    if options[:aab]
+      # Retry path when the build succeeded but the upload failed: skip prebuild + gradle
+      aab = File.expand_path(options[:aab], PROJECT_ROOT)
+      UI.user_error!("#{aab} not found") unless File.exist?(aab)
+    else
+      version_code = next_version_code(play_version_codes(creds))
+      UI.important("versionCode #{version_code}")
+      aab = build_aab(version_code)
     end
 
-    gradle(
-      project_dir: "../android",
-      task: "bundle",
-      build_type: "Release"
-    )
+    # supply handles one track per edit and Play rejects the same binary twice, so upload to the
+    # first track and promote the same versionCode onto the rest.
+    primary, *extra = tracks
+
+    upload_to_play_store(**upload_options(creds, rollout).merge(track: primary, aab: aab))
+    UI.success("#{File.basename(aab)} → #{primary}")
+
+    # Not `return if extra.empty?`: a lane block is a Proc and `return` raises LocalJumpError
+    unless extra.empty?
+      version_code ||= track_version_codes(primary, creds).max
+      UI.user_error!("no versionCode on #{primary}; promote the remaining tracks manually") if version_code.nil?
+
+      extra.each do |target|
+        upload_to_play_store(**promote_options(creds, rollout, primary, target, version_code))
+        UI.success("versionCode #{version_code}: #{primary} → #{target}")
+      end
+    end
   end
 
-  desc "Deploy to Google Play internal testing track"
-  lane :internal do
-    build
+  desc 'Move a build from one track to another without rebuilding'
+  lane :promote do |options|
+    from = options[:from] || 'internal'
+    to = options[:to] || 'production'
+    creds = play_credentials
 
-    upload_to_play_store(
-      track: "internal",
-      aab: "../android/app/build/outputs/bundle/release/app-release.aab",
-      skip_upload_metadata: true,
-      skip_upload_images: true,
-      skip_upload_screenshots: true
-    )
+    # Rebuilding would ship a different binary than the one that was tested
+    version_code = options[:version_code] || track_version_codes(from, creds).max
+    UI.user_error!("nothing to promote on #{from}") if version_code.nil?
+
+    upload_to_play_store(**promote_options(creds, options[:rollout], from, to, version_code))
+    UI.success("versionCode #{version_code}: #{from} → #{to}")
   end
 
-  desc "Deploy to Google Play closed alpha track"
-  lane :alpha do
-    build
+  private_lane :play_credentials do
+    data = ENV['GOOGLE_PLAY_JSON_KEY_DATA']
 
-    upload_to_play_store(
-      track: "alpha",
-      aab: "../android/app/build/outputs/bundle/release/app-release.aab",
-      skip_upload_metadata: true,
-      skip_upload_images: true,
-      skip_upload_screenshots: true
-    )
+    if data && !data.empty?
+      { json_key_data: data }
+    else
+      path = ENV['GOOGLE_PLAY_JSON_KEY_PATH'] || DEFAULT_JSON_KEY
+      unless File.exist?(path)
+        UI.user_error!(<<~MSG)
+          Play service account key not found: #{path}
+
+          Create a service account in Google Cloud, download its JSON key, invite its email in
+          Play Console → Users and permissions with release rights on #{PACKAGE_NAME}, and put
+          the file at the path above (git-ignored). On CI set GOOGLE_PLAY_JSON_KEY_DATA instead.
+        MSG
+      end
+      { json_key: path }
+    end
+  end
+end
+
+def upload_options(creds, rollout)
+  creds.merge(
+    package_name: PACKAGE_NAME,
+    # rollout only makes sense for inProgress; Play rejects a rollout on a completed release
+    release_status: rollout ? 'inProgress' : 'completed',
+    skip_upload_metadata: true,
+    skip_upload_images: true,
+    skip_upload_screenshots: true,
+    skip_upload_changelogs: true
+  ).merge(rollout ? { rollout: rollout.to_s } : {})
+end
+
+def promote_options(creds, rollout, from, to, version_code)
+  upload_options(creds, rollout).merge(
+    track: from,
+    track_promote_to: to,
+    version_code: version_code.to_i,
+    skip_upload_apk: true,
+    skip_upload_aab: true
+  )
+end
+
+def play_version_codes(creds)
+  TRACKS.to_h { |track| [track, track_version_codes(track, creds)] }
+end
+
+def track_version_codes(track, creds)
+  google_play_track_version_codes(**creds.merge(package_name: PACKAGE_NAME, track: track)) || []
+rescue StandardError => e
+  status = e.respond_to?(:status_code) ? e.status_code : nil
+
+  # A track that was never used does not exist on Play
+  if status == 404
+    UI.important("track #{track}: #{e.message}")
+    return []
   end
 
-  desc "Deploy to Google Play beta track"
-  lane :beta do
-    build
+  # Anything else must stop here: swallowing it would report "every track is empty" and
+  # hand out a versionCode Play will reject.
+  if status == 403
+    UI.user_error!(<<~MSG)
+      Play denied access (403, track #{track}): #{e.message}
 
-    upload_to_play_store(
-      track: "beta",
-      aab: "../android/app/build/outputs/bundle/release/app-release.aab",
-      skip_upload_metadata: true,
-      skip_upload_images: true,
-      skip_upload_screenshots: true
-    )
+      The service account has no release permission on #{PACKAGE_NAME} yet, or it was just
+      granted and has not propagated (minutes to hours). Wait — do not regenerate the key.
+    MSG
   end
 
-  desc "Deploy to Google Play production"
-  lane :production do
-    build
+  UI.user_error!(<<~MSG)
+    Could not reach Play (track #{track}): #{e.message}
 
-    upload_to_play_store(
-      track: "production",
-      aab: "../android/app/build/outputs/bundle/release/app-release.aab",
-      skip_upload_metadata: true,
-      skip_upload_images: true,
-      skip_upload_screenshots: true
-    )
-  end
+    Most likely the key itself is wrong — check that #{creds[:json_key] || 'GOOGLE_PLAY_JSON_KEY_DATA'}
+    is the full service account JSON. It may also just be the network.
+  MSG
+end
+
+# The local mirror and app.json count too: an aab may have been built locally but not uploaded yet
+def next_version_code(codes_by_track)
+  [codes_by_track.values.flatten.map(&:to_i).max || 0, local_version_code].max + 1
+end
+
+def local_version_code
+  state = File.join(PROJECT_ROOT, '.env.release')
+  from_state = File.exist?(state) ? File.read(state)[/^\s*ANDROID_VERSION_CODE\s*=\s*(\d+)/, 1].to_i : 0
+  from_app_json = JSON.parse(File.read(File.join(PROJECT_ROOT, 'app.json'))).dig('expo', 'android', 'versionCode').to_i
+
+  [from_state, from_app_json].max
+end
+
+# The artifact name carries a timestamp, so the script reports its path instead of us globbing
+def build_aab(version_code)
+  path_file = File.join(Dir.tmpdir, "nocta-aab-#{Process.pid}")
+
+  ENV['ANDROID_VERSION_CODE'] = version_code.to_s
+  ENV['ANDROID_VERSION_CODE_PERSIST'] = '1'
+  ENV['RELEASE_ARTIFACT_PATH_FILE'] = path_file
+
+  sh('bash', File.join(PROJECT_ROOT, 'scripts/release-android.sh'), 'aab')
+
+  aab = File.exist?(path_file) ? File.read(path_file).strip : ''
+  UI.user_error!('release-android.sh did not report an artifact path') if aab.empty?
+  UI.user_error!("#{aab} not found") unless File.exist?(aab)
+
+  aab
+ensure
+  File.delete(path_file) if path_file && File.exist?(path_file)
 end

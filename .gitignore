@@ -38,8 +38,15 @@ yarn-error.*
 *.keystore
 keystore.properties
 
-# Fastlane
+# android release state (versionCode mirror)
+.env.release
+
+# Fastlane — the Play service account key stays out of git, the rest is generated
+config/play-store/
 fastlane/google-play-key.json
+/vendor/bundle
+.bundle/
+fastlane/README.md
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots

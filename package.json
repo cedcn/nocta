@@ -8,7 +8,17 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "keystore:android": "bash scripts/create-android-keystore.sh",
+    "release:android": "bash scripts/release-android.sh apk",
+    "release:android:aab": "bash scripts/release-android.sh aab",
+    "play:doctor": "bundle exec fastlane android doctor",
+    "play:internal": "bundle exec fastlane android release",
+    "play:alpha": "bundle exec fastlane android release track:alpha",
+    "play:testing": "bundle exec fastlane android release track:internal,alpha",
+    "play:production": "bundle exec fastlane android release track:production",
+    "play:promote": "bundle exec fastlane android promote from:internal to:production"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
