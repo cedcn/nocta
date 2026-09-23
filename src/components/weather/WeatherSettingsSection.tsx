@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Switch, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useWeather } from '../../context/WeatherContext';
 import { useRootNavigation } from '../../navigation';
 import { maskHost } from '../../services/weather/qweather';
+import ThemedSwitch from '../ThemedSwitch';
 import { colors, fontSize } from '../../theme';
 
 // Rendered inside the Settings → System group, so row styles mirror SettingsScreen.
@@ -28,10 +29,9 @@ export default function WeatherSettingsSection() {
           <Text style={styles.itemText}>{t('smart_recommend')}</Text>
           <Text style={styles.itemDesc}>{t('smart_recommend_desc')}</Text>
         </View>
-        <Switch
+        <ThemedSwitch
           value={enabled}
           onValueChange={onToggle}
-          trackColor={{ true: colors.accent, false: colors.trackInactive }}
         />
       </View>
       {enabled && (

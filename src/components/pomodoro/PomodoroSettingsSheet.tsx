@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Check, Play, Square } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { usePomodoro } from '../../context/PomodoroContext';
 import type { RingtoneId } from '../../services/notifications';
 import { previewRingtone, RINGTONE_IDS, stopPreview } from './ringtonePlayer';
+import ThemedSwitch from '../ThemedSwitch';
 import { colors, fontSize, radii } from '../../theme';
 
 interface Props {
@@ -89,19 +90,17 @@ export default function PomodoroSettingsSheet({ visible, onClose }: Props) {
           <View style={[styles.card, styles.switchCard]}>
             <View style={styles.row}>
               <Text style={[styles.rowText, styles.flex]}>{t('pulseAnimation')}</Text>
-              <Switch
+              <ThemedSwitch
                 value={settings.pulseAnimation}
                 onValueChange={(v) => updateSettings({ pulseAnimation: v })}
-                trackColor={{ true: colors.accent, false: colors.trackInactive }}
               />
             </View>
             <View style={styles.divider} />
             <View style={styles.row}>
               <Text style={[styles.rowText, styles.flex]}>{t('vibrate')}</Text>
-              <Switch
+              <ThemedSwitch
                 value={settings.vibrate}
                 onValueChange={(v) => updateSettings({ vibrate: v })}
-                trackColor={{ true: colors.accent, false: colors.trackInactive }}
               />
             </View>
           </View>
