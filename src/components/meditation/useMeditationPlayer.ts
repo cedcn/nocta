@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createAudioPlayer, AudioPlayer, AudioStatus } from 'expo-audio';
 import { useAudio } from '../../context/AudioContext';
 import { BILIBILI_HEADERS, resolveAudioStream } from '../../services/bilibili';
-import { MeditationSession } from '../../data/meditation';
+import { getMeditationCategory, MeditationSession } from '../../data/meditation';
+import { useLocalizedName } from '../../i18n/LanguageProvider';
+import { APP_ARTIST, claimLockScreen, releaseLockScreen } from '../../services/nowPlaying';
 
 const LOAD_TIMEOUT_MS = 20000;
 const MAX_REPEAT = 3;
@@ -16,6 +18,7 @@ export interface PlayerState {
 
 export function useMeditationPlayer(session: MeditationSession | undefined) {
   const { pauseAll, timerRemaining } = useAudio();
+  const localizedName = useLocalizedName();
   const [state, setState] = useState<PlayerState>({
     playing: false,
     currentTime: 0,
@@ -45,6 +48,7 @@ export function useMeditationPlayer(session: MeditationSession | undefined) {
     const player = playerRef.current;
     playerRef.current = null;
     if (player) {
+      releaseLockScreen(player);
       player.pause();
       player.remove();
     }
@@ -108,8 +112,21 @@ export function useMeditationPlayer(session: MeditationSession | undefined) {
       ignoreNextEndedRef.current = false;
       pauseAll();
       player.play();
+      if (session) {
+        const category = getMeditationCategory(session.category);
+        claimLockScreen(
+          player,
+          {
+            title: localizedName(session),
+            artist: category ? localizedName(category) : APP_ARTIST,
+            albumTitle: APP_ARTIST,
+            artworkUrl: session.coverUrl,
+          },
+          { showSeekForward: true, showSeekBackward: true },
+        );
+      }
     },
-    [handleEnded, pauseAll, release, session?.duration],
+    [handleEnded, localizedName, pauseAll, release, session],
   );
 
   const load = useCallback(

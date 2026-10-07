@@ -1,9 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { AudioPlayer, AudioStatus, createAudioPlayer } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PlayingSound, Preset } from '../types';
 import { getSoundById } from '../data/sounds';
+import { useLocalizedName } from '../i18n/LanguageProvider';
+import { APP_ARTIST, applyDefaultAudioMode, claimLockScreen, releaseLockScreen, updateLockScreen } from '../services/nowPlaying';
 
 export const MAX_PRESETS = 10;
 export const MIN_PRESETS = 3;
@@ -74,7 +76,14 @@ const migratePresets = (raw: unknown): Preset[] => {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const disposePlayer = (player: AudioPlayer) => {
+  releaseLockScreen(player);
+  player.pause();
+  player.remove();
+};
+
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const localizedName = useLocalizedName();
   const [playingSounds, setPlayingSoundsState] = useState<PlayingSound[]>([]);
   const [presets, setPresetsState] = useState<Preset[]>(() => migratePresets([]));
   const [currentPresetId, setCurrentPresetId] = useState<string>('');
@@ -105,11 +114,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   useEffect(() => {
-    setAudioModeAsync({
-      playsInSilentMode: true,
-      shouldPlayInBackground: true,
-      interruptionMode: 'mixWithOthers',
-    }).catch(() => {});
+    applyDefaultAudioMode();
 
     (async () => {
       try {
@@ -141,10 +146,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const releaseAll = useCallback(() => {
-    playingRef.current.forEach((s) => {
-      s.sound.pause();
-      s.sound.remove();
-    });
+    playingRef.current.forEach((s) => disposePlayer(s.sound));
     setPlaying(() => []);
   }, [setPlaying]);
 
@@ -176,8 +178,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     async (soundId: string) => {
       const existing = playingRef.current.find((s) => s.id === soundId);
       if (existing) {
-        existing.sound.pause();
-        existing.sound.remove();
+        disposePlayer(existing.sound);
         setPlaying((prev) => prev.filter((s) => s.id !== soundId));
         if (playingRef.current.length === 0) setActivePresetId(null);
       } else {
@@ -267,6 +268,38 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     },
     [],
   );
+
+  // The first sound in the mix represents the whole mix on the lock screen / Dynamic Island /
+  // media notification. System controls only drive that player, so mirror its play/pause to the rest.
+  const leadPlayer = playingSounds[0]?.sound;
+  const mixTitle = playingSounds
+    .map((s) => {
+      const sound = getSoundById(s.id);
+      return sound ? localizedName(sound) : s.id;
+    })
+    .join(' · ');
+  const mixTitleRef = useRef(mixTitle);
+  mixTitleRef.current = mixTitle;
+
+  useEffect(() => {
+    if (!leadPlayer) return;
+    claimLockScreen(leadPlayer, { title: mixTitleRef.current, artist: APP_ARTIST });
+    let wasPlaying = true;
+    const sub = leadPlayer.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+      if (!status.isLoaded || status.isBuffering || status.playing === wasPlaying) return;
+      wasPlaying = status.playing;
+      playingRef.current.forEach((s) => {
+        if (s.sound === leadPlayer) return;
+        if (status.playing) s.sound.play();
+        else s.sound.pause();
+      });
+    });
+    return () => sub.remove();
+  }, [leadPlayer]);
+
+  useEffect(() => {
+    if (leadPlayer) updateLockScreen(leadPlayer, { title: mixTitle, artist: APP_ARTIST });
+  }, [leadPlayer, mixTitle]);
 
   const playMix = useCallback(
     async (items: MixItem[]) => {
