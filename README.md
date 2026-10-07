@@ -17,9 +17,11 @@ Not ported (by choice): Bilibili radio, local audio library, sound diary, daily-
 
 ### 🎵 Sounds
 - **113 white-noise sounds** in 8 categories. The manifest is fetched from jsDelivr (raw GitHub as fallback) on launch and cached, with a bundled copy as the offline fallback.
-- **Multi-sound mixing** with per-sound volume, which is saved between sessions.
-- **Dynamic presets**: 3–10 presets, each holding up to 10 sounds. You can create, rename and delete them.
-- **Sleep timer** (15/30/45/60/120 min) that fades the sound out over 5 s. It is based on absolute time, so it stays accurate in the background.
+- **Offline playback**: each sound is downloaded once (jsDelivr first, raw GitHub as fallback) and then played from local storage. Rows show loading and retry states, and the cache can be cleared in Settings.
+- **Multi-sound mixing** with per-sound and master volume, saved between sessions. The now-playing panel can pause, remove sounds and save the mix as a preset.
+- **Search, favorites and recently played** sounds; Home offers to continue the last mix.
+- **Dynamic presets**: 3–10 presets, each holding up to 10 sounds, with three built-in mixes on first launch. You can create, rename and delete them.
+- **Sleep timer** (15/30/45/60/120 min or custom, +5 min to extend) with a configurable fade-out (5 s–5 min) that ends exactly when the timer does. It is based on absolute time, so it stays accurate in the background, and the remaining time shows on the lock screen.
 - **Auto countdown**: optionally starts the timer whenever a preset is played.
 
 ### 🌬️ Breathing & meditation
@@ -41,13 +43,13 @@ Not ported (by choice): Bilibili radio, local audio library, sound diary, daily-
 
 1. **Home**: categories, featured sound, weather card, Pomodoro entry
 2. **Mixer**: timer, presets, mixing
-3. **Breathe**: breathing methods and meditation
-4. **Settings**: auto countdown, Big Clock, weather, language, about
+3. **Relax**: meditation, breathing methods, Pomodoro and Big Clock
+4. **Settings**: auto countdown, fade-out, offline sounds, weather, language, about
 
 ## 🛠️ Tech Stack
 
 - Expo ~55 / React Native 0.83 / TypeScript
-- expo-audio, React Navigation 7, AsyncStorage
+- expo-audio, expo-file-system, React Navigation 7, AsyncStorage
 - i18next + expo-localization, expo-location, expo-secure-store, lottie-react-native, expo-notifications
 
 ## 🚀 Quick Start

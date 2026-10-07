@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Modal, Alert } from 'react-native';
-import { Check, ChevronRight, CircleStop, ExternalLink } from 'lucide-react-native';
+import { Check, CircleStop, ExternalLink } from 'lucide-react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
-import { TIMER_OPTIONS, useAudio } from '../context/AudioContext';
+import { FADE_OPTIONS, TIMER_OPTIONS, useAudio } from '../context/AudioContext';
+import { clearSoundCache, getCacheSize } from '../services/soundCache';
 import { useLanguage } from '../i18n/LanguageProvider';
 import { LANGUAGES, LanguagePreference } from '../i18n/languages';
-import { useRootNavigation } from '../navigation';
 import ScreenBackground from '../components/ScreenBackground';
 import GlassCard from '../components/GlassCard';
 import WeatherSettingsSection from '../components/weather/WeatherSettingsSection';
@@ -15,6 +16,10 @@ import { colors, fontSize, radii } from '../theme';
 
 const GITHUB_URL = 'https://github.com/Tosencen/XMSLEEP';
 const METEOCONS_URL = 'https://github.com/basmilius/meteocons';
+
+type PickerKind = 'language' | 'countdown' | 'fade';
+
+const formatBytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
 interface Choice<T> {
   value: T;
@@ -24,10 +29,32 @@ interface Choice<T> {
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const navigation = useRootNavigation();
-  const { stopAll, presets, autoCountdown, setAutoCountdown } = useAudio();
+  const { stopAll, autoCountdown, setAutoCountdown, fadeSeconds, setFadeSeconds } = useAudio();
   const { preference, setPreference } = useLanguage();
-  const [picker, setPicker] = useState<'language' | 'countdown' | null>(null);
+  const [picker, setPicker] = useState<PickerKind | null>(null);
+  const [cacheSize, setCacheSize] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setCacheSize(getCacheSize());
+    }, []),
+  );
+
+  const confirmClearCache = () => {
+    Alert.alert(t('settings.offlineCache'), t('settings.clearCacheConfirm'), [
+      { text: t('actions.cancel'), style: 'cancel' },
+      {
+        text: t('settings.clearCache'),
+        style: 'destructive',
+        onPress: () => {
+          // Players may hold the cached files open, so stop them before deleting.
+          stopAll();
+          clearSoundCache();
+          setCacheSize(getCacheSize());
+        },
+      },
+    ]);
+  };
 
   const openUrl = (url: string) => {
     Linking.openURL(url).catch(() => Alert.alert(t('settings.linkCopyFailed'), url));
@@ -35,6 +62,8 @@ export default function SettingsScreen() {
 
   const formatMinutes = (min: number) =>
     min >= 120 && min % 60 === 0 ? t('timer.hours', { count: min / 60 }) : t('timer.minutes', { count: min });
+  const formatFade = (sec: number) =>
+    sec >= 60 ? t('settings.minutesLong', { count: sec / 60 }) : t('settings.seconds', { count: sec });
 
   const languageChoices: Choice<LanguagePreference>[] = [
     { value: 'system', label: t('settings.followSystem') },
@@ -45,28 +74,46 @@ export default function SettingsScreen() {
     ...TIMER_OPTIONS.map((m) => ({ value: m, label: formatMinutes(m) })),
   ];
 
+  const fadeChoices: Choice<number>[] = FADE_OPTIONS.map((sec) => ({ value: sec, label: formatFade(sec) }));
+
   const languageLabel = languageChoices.find((c) => c.value === preference)?.label ?? '';
   const countdownLabel = autoCountdown ? formatMinutes(autoCountdown) : t('timer.off');
-  const savedPresets = presets.filter((p) => p.sounds.length > 0).length;
   const version = Constants.expoConfig?.version ?? '';
 
   const renderPicker = () => {
     if (!picker) return null;
-    const isLanguage = picker === 'language';
-    const choices: Choice<LanguagePreference | number | null>[] = isLanguage ? languageChoices : countdownChoices;
-    const selected = isLanguage ? preference : autoCountdown;
+    const config: Record<PickerKind, { title: string; choices: Choice<LanguagePreference | number | null>[]; selected: unknown; onSelect: (v: unknown) => void }> = {
+      language: {
+        title: t('settings.language'),
+        choices: languageChoices,
+        selected: preference,
+        onSelect: (v) => setPreference(v as LanguagePreference),
+      },
+      countdown: {
+        title: t('settings.autoCountdown'),
+        choices: countdownChoices,
+        selected: autoCountdown,
+        onSelect: (v) => setAutoCountdown(v as number | null),
+      },
+      fade: {
+        title: t('settings.fadeOut'),
+        choices: fadeChoices,
+        selected: fadeSeconds,
+        onSelect: (v) => setFadeSeconds(v as number),
+      },
+    };
+    const { title, choices, selected, onSelect } = config[picker];
     return (
       <Modal visible transparent animationType="fade" onRequestClose={() => setPicker(null)}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setPicker(null)}>
           <GlassCard strong style={styles.dialog}>
-            <Text style={styles.dialogTitle}>{isLanguage ? t('settings.language') : t('settings.autoCountdown')}</Text>
+            <Text style={styles.dialogTitle}>{title}</Text>
             {choices.map((c) => (
               <TouchableOpacity
                 key={String(c.value)}
                 style={styles.choice}
                 onPress={() => {
-                  if (isLanguage) setPreference(c.value as LanguagePreference);
-                  else setAutoCountdown(c.value as number | null);
+                  onSelect(c.value);
                   setPicker(null);
                 }}
               >
@@ -105,20 +152,29 @@ export default function SettingsScreen() {
             <Text style={styles.itemValue}>{countdownLabel}</Text>
           </TouchableOpacity>
           <View style={styles.divider} />
+          <TouchableOpacity style={styles.item} onPress={() => setPicker('fade')} activeOpacity={0.7}>
+            <View style={styles.itemTexts}>
+              <Text style={styles.itemText}>{t('settings.fadeOut')}</Text>
+              <Text style={styles.itemDesc}>{t('settings.fadeOutDesc')}</Text>
+            </View>
+            <Text style={styles.itemValue}>{formatFade(fadeSeconds)}</Text>
+          </TouchableOpacity>
+          <View style={styles.divider} />
           <View style={styles.item}>
-            <Text style={styles.itemText}>{t('settings.savedPresets')}</Text>
-            <Text style={styles.itemValue}>{savedPresets}</Text>
+            <View style={styles.itemTexts}>
+              <Text style={styles.itemText}>{t('settings.offlineCache')}</Text>
+              <Text style={styles.itemDesc}>{t('settings.offlineCacheDesc', { size: formatBytes(cacheSize) })}</Text>
+            </View>
+            <TouchableOpacity onPress={confirmClearCache} disabled={cacheSize === 0} hitSlop={8}>
+              <Text style={[styles.itemAction, cacheSize === 0 && styles.itemActionDisabled]}>
+                {t('settings.clearCache')}
+              </Text>
+            </TouchableOpacity>
           </View>
         </GlassCard>
 
         <Text style={styles.sectionTitle}>{t('settings.system')}</Text>
         <GlassCard style={styles.group}>
-          <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('BigClock')} activeOpacity={0.7}>
-            <View style={styles.itemTexts}>
-              <Text style={styles.itemText}>{t('clock:title', { defaultValue: 'Big Clock' })}</Text>
-            </View>
-            <ChevronRight size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
           <WeatherSettingsSection />
           <View style={styles.divider} />
           <TouchableOpacity style={styles.item} onPress={() => setPicker('language')} activeOpacity={0.7}>
@@ -178,6 +234,8 @@ const styles = StyleSheet.create({
   itemText: { color: colors.textPrimary, fontSize: fontSize.subtitle, fontWeight: '600' },
   itemDesc: { color: colors.textSecondary, fontSize: fontSize.caption, marginTop: 2, flexShrink: 1 },
   itemValue: { color: colors.textSecondary, fontSize: fontSize.subtitle },
+  itemAction: { color: colors.accent, fontSize: fontSize.subtitle, fontWeight: '700' },
+  itemActionDisabled: { color: colors.textSecondary, opacity: 0.5 },
   backdrop: {
     flex: 1,
     backgroundColor: colors.overlay,

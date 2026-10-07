@@ -9,6 +9,7 @@ import { useLocalizedName } from '../i18n/LanguageProvider';
 import ScreenBackground from '../components/ScreenBackground';
 import GlassCard from '../components/GlassCard';
 import SoundRow from '../components/SoundRow';
+import FloatingPlayButton from '../components/FloatingPlayButton';
 import { colors, radii, fontSize, shadow, getCategoryStyle } from '../theme';
 import { CategoryDetailProps } from '../navigation';
 
@@ -35,7 +36,7 @@ export default function CategoryDetailScreen({ route, navigation }: CategoryDeta
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 180 }]}
       >
         <View style={styles.hero}>
           <GlassCard strong style={styles.heroBadge}>
@@ -66,6 +67,8 @@ export default function CategoryDetailScreen({ route, navigation }: CategoryDeta
           <SoundRow key={sound.id} sound={sound} isPlaying={playingSounds.some((p) => p.id === sound.id)} />
         ))}
       </ScrollView>
+
+      <FloatingPlayButton />
     </ScreenBackground>
   );
 }

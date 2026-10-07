@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
-import { CircleHelp, Flower2 } from 'lucide-react-native';
+import { ChevronRight, CircleHelp, Clock, Flower2, Timer } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -140,6 +140,39 @@ export default function BreathingListScreen() {
         >
           {BREATHING_METHODS.map(renderMethod)}
         </ScrollView>
+
+        <Text style={styles.sectionTitle}>{t('common:relax.tools')}</Text>
+        <View style={styles.tools}>
+          {[
+            {
+              key: 'pomodoro',
+              Icon: Timer,
+              title: t('pomodoro:timerTitle'),
+              desc: t('common:relax.pomodoroDesc'),
+              onPress: () => navigation.navigate('Pomodoro'),
+            },
+            {
+              key: 'clock',
+              Icon: Clock,
+              title: t('clock:title'),
+              desc: t('common:relax.clockDesc'),
+              onPress: () => navigation.navigate('BigClock'),
+            },
+          ].map(({ key, Icon, title, desc, onPress }) => (
+            <TouchableOpacity key={key} activeOpacity={0.85} onPress={onPress}>
+              <GlassCard style={styles.toolCard}>
+                <View style={styles.toolIcon}>
+                  <Icon size={22} color={colors.accent} />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.toolTitle}>{title}</Text>
+                  <Text style={styles.toolDesc}>{desc}</Text>
+                </View>
+                <ChevronRight size={20} color={colors.textSecondary} />
+              </GlassCard>
+            </TouchableOpacity>
+          ))}
+        </View>
       </ScrollView>
 
       <BreathingTutorialModal method={tutorial} onClose={() => setTutorial(null)} />
@@ -181,6 +214,18 @@ const styles = StyleSheet.create({
   },
   meditationTagText: { color: colors.textPrimary, fontSize: fontSize.caption, fontWeight: '600' },
   meditationCount: { color: colors.textSecondary, fontSize: fontSize.caption },
+  tools: { paddingHorizontal: 20, gap: 12 },
+  toolCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  toolIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    backgroundColor: colors.pastelPeach,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolTitle: { color: colors.textPrimary, fontSize: fontSize.subtitle, fontWeight: '700' },
+  toolDesc: { color: colors.textSecondary, fontSize: fontSize.caption, marginTop: 2 },
   methodShadow: { borderRadius: radii.lg, ...shadow },
   methodCard: { height: 320, borderRadius: radii.lg, padding: 24, justifyContent: 'space-between' },
   primaryBadge: {

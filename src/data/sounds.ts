@@ -89,3 +89,5 @@ export const getSoundsByCategory = (categoryId: string) =>
 export const getAllCategories = () => [...manifest.categories].sort((a, b) => a.order - b.order);
 
 export const getSoundById = (id: string) => manifest.sounds.find((s) => s.id === id);
+
+export const getVisibleSounds = () => manifest.sounds.filter((s) => s.isVisible !== false);

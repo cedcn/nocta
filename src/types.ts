@@ -50,5 +50,7 @@ export interface PlayingSound {
 export interface Preset {
   id: string;
   name: string;
+  // i18n key for built-in presets; used while `name` is empty so the label follows the app language.
+  nameKey?: string;
   sounds: { soundId: string; volume: number }[];
 }

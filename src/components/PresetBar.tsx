@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Modal, TextInput } from 'react-native';
 import { Plus } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { MAX_PRESETS, MAX_PRESET_SOUNDS, MIN_PRESETS, useAudio } from '../context/AudioContext';
 import { Preset } from '../types';
+import { usePresetName } from '../hooks/usePresetActions';
 import GlassCard from './GlassCard';
 import { colors, radii, fontSize, shadow } from '../theme';
 
@@ -25,9 +27,10 @@ export default function PresetBar() {
   const [renaming, setRenaming] = useState<Preset | null>(null);
   const [draftName, setDraftName] = useState('');
 
-  const displayName = (preset: Preset, index: number) => preset.name || t('presets.defaultName', { n: index + 1 });
+  const displayName = usePresetName();
 
   const handlePress = (preset: Preset) => {
+    Haptics.selectionAsync().catch(() => {});
     setCurrentPreset(preset.id);
     if (activePresetId === preset.id && playingSounds.length > 0) {
       stopAll();

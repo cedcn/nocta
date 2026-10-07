@@ -23,7 +23,6 @@ export default function WeatherSettingsSection() {
 
   return (
     <>
-      <View style={styles.divider} />
       <View style={styles.item}>
         <View style={styles.itemTexts}>
           <Text style={styles.itemText}>{t('smart_recommend')}</Text>

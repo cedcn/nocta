@@ -1,20 +1,22 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { Moon, Sun, Sunrise, Timer, Play, Pause } from 'lucide-react-native';
+import { Moon, Sun, Sunrise, Timer, Play, Pause, History } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAudio } from '../context/AudioContext';
-import { getAllCategories, getSoundsByCategory, useSoundsManifest } from '../data/sounds';
+import { getAllCategories, getSoundById, getSoundsByCategory, useSoundsManifest } from '../data/sounds';
+import { SoundMetadata } from '../types';
 import { useLocalizedName } from '../i18n/LanguageProvider';
 import ScreenBackground from '../components/ScreenBackground';
 import GlassCard from '../components/GlassCard';
 import CategoryCard from '../components/CategoryCard';
+import SoundChip from '../components/SoundChip';
 import WeatherCard from '../components/weather/WeatherCard';
 import { colors, radii, fontSize, shadow, getCategoryStyle } from '../theme';
 import { HomeMainProps, useRootNavigation } from '../navigation';
 
-// Surface a recommended sound on the hero card (falls back to the first sound)
-const FEATURED_ID = 'rain';
+// Shown on the hero card for first-time users who have no previous mix yet.
+const FEATURED_CATEGORY = 'rain';
 
 const greetingFor = (hour: number) => {
   if (hour >= 5 && hour < 12) return { key: 'home.greetingMorning', Icon: Sunrise } as const;
@@ -27,16 +29,72 @@ export default function HomeScreen({ navigation }: HomeMainProps) {
   const { t } = useTranslation();
   const localizedName = useLocalizedName();
   const rootNavigation = useRootNavigation();
-  const { playingSounds, toggleSound, timer, timerRemaining } = useAudio();
+  const { playingSounds, isPaused, togglePause, toggleSound, playMix, lastMix, favorites, recents, timer, timerRemaining } =
+    useAudio();
   useSoundsManifest();
   const categories = getAllCategories();
   const greeting = greetingFor(new Date().getHours());
 
-  const featured = getSoundsByCategory('rain')[0] ?? getSoundsByCategory(categories[0].id)[0];
-  const featuredPlaying = featured ? playingSounds.some((p) => p.id === featured.id) : false;
-  const { icon: FeaturedIcon } = getCategoryStyle(featured?.category ?? FEATURED_ID);
+  const resolveSounds = (ids: string[]) =>
+    ids.map((id) => getSoundById(id)).filter((s): s is SoundMetadata => !!s);
+  const favoriteSounds = resolveSounds(favorites);
+  const recentSounds = resolveSounds(recents);
+  const joinNames = (sounds: SoundMetadata[]) => sounds.map(localizedName).join(' · ');
 
-  const progress = timer && timerRemaining ? timerRemaining / (timer * 60) : featuredPlaying ? 1 : 0;
+  const featured = getSoundsByCategory(FEATURED_CATEGORY)[0] ?? getSoundsByCategory(categories[0].id)[0];
+  const lastMixSounds = resolveSounds(lastMix.map((m) => m.soundId));
+
+  // Hero priority: what's playing now → resume the last mix → a featured sound for new users.
+  const hero = (() => {
+    if (playingSounds.length > 0) {
+      return {
+        label: t('player.playingTitle', { count: playingSounds.length }),
+        title: joinNames(resolveSounds(playingSounds.map((p) => p.id))),
+        category: getSoundById(playingSounds[0].id)?.category ?? FEATURED_CATEGORY,
+        active: !isPaused,
+        resume: false,
+        onPress: togglePause,
+      };
+    }
+    if (lastMixSounds.length > 0) {
+      return {
+        label: t('home.continueLast'),
+        title: joinNames(lastMixSounds),
+        category: lastMixSounds[0].category,
+        active: false,
+        resume: true,
+        onPress: () => playMix(lastMix),
+      };
+    }
+    if (!featured) return null;
+    return {
+      label: t('home.featured'),
+      title: localizedName(featured),
+      category: featured.category,
+      active: false,
+      resume: false,
+      onPress: () => toggleSound(featured.id),
+    };
+  })();
+  const { icon: HeroIcon } = getCategoryStyle(hero?.category ?? FEATURED_CATEGORY);
+  const progress = timer && timerRemaining !== null ? timerRemaining / (timer * 60) : null;
+
+  const renderSoundRow = (title: string, sounds: SoundMetadata[]) =>
+    sounds.length > 0 && (
+      <>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipsScroll}
+          contentContainerStyle={styles.chipsContent}
+        >
+          {sounds.map((sound) => (
+            <SoundChip key={sound.id} sound={sound} />
+          ))}
+        </ScrollView>
+      </>
+    );
 
   return (
     <ScreenBackground>
@@ -59,34 +117,40 @@ export default function HomeScreen({ navigation }: HomeMainProps) {
 
         <WeatherCard />
 
-        {featured && (
+        {hero && (
           <GlassCard strong style={styles.hero}>
             <View style={styles.heroRow}>
               <View style={styles.heroIcon}>
-                <FeaturedIcon size={32} color={colors.accent} />
+                <HeroIcon size={32} color={colors.accent} />
               </View>
               <View style={styles.heroTexts}>
-                <Text style={styles.heroLabel}>{t('home.featured')}</Text>
-                <Text style={styles.heroTitle}>{localizedName(featured)}</Text>
+                <View style={styles.heroLabelRow}>
+                  {hero.resume && <History size={12} color={colors.textSecondary} />}
+                  <Text style={styles.heroLabel}>{hero.label}</Text>
+                </View>
+                <Text style={styles.heroTitle} numberOfLines={2}>
+                  {hero.title}
+                </Text>
               </View>
-              <TouchableOpacity
-                style={styles.playBtn}
-                onPress={() => toggleSound(featured.id)}
-                activeOpacity={0.8}
-              >
-                {featuredPlaying ? (
+              <TouchableOpacity style={styles.playBtn} onPress={hero.onPress} activeOpacity={0.8}>
+                {hero.active ? (
                   <Pause size={16} color={colors.textOnAccent} />
                 ) : (
                   <Play size={16} color={colors.textOnAccent} />
                 )}
-                <Text style={styles.playText}>{featuredPlaying ? t('actions.pause') : t('actions.play')}</Text>
+                <Text style={styles.playText}>{hero.active ? t('actions.pause') : t('actions.play')}</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
-            </View>
+            {progress !== null && (
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+              </View>
+            )}
           </GlassCard>
         )}
+
+        {renderSoundRow(t('home.favorites'), favoriteSounds)}
+        {renderSoundRow(t('home.recents'), recentSounds)}
 
         <Text style={styles.sectionTitle}>{t('home.category')}</Text>
         <View style={styles.grid}>
@@ -140,8 +204,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroTexts: { flex: 1, marginLeft: 14 },
+  heroLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   heroLabel: { color: colors.textSecondary, fontSize: fontSize.caption, fontWeight: '600' },
-  heroTitle: { color: colors.textPrimary, fontSize: fontSize.title, fontWeight: '700', marginTop: 2 },
+  heroTitle: { color: colors.textPrimary, fontSize: fontSize.subtitle, fontWeight: '700', marginTop: 2 },
   playBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -162,4 +227,6 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: colors.accent, borderRadius: radii.pill },
   sectionTitle: { color: colors.textPrimary, fontSize: fontSize.title, fontWeight: '700', marginTop: 28, marginBottom: 14 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
+  chipsScroll: { flexGrow: 0, marginHorizontal: -20 },
+  chipsContent: { paddingHorizontal: 20 },
 });
