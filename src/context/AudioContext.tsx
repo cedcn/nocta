@@ -12,7 +12,7 @@ import { resolveSoundUri } from '../services/soundCache';
 export const MAX_PRESETS = 10;
 export const MIN_PRESETS = 3;
 export const MAX_PRESET_SOUNDS = 10;
-export const TIMER_OPTIONS = [15, 30, 45, 60, 120];
+export const TIMER_OPTIONS = [15, 30, 60, 120];
 export const TIMER_EXTEND_MINUTES = 5;
 export const FADE_OPTIONS = [5, 30, 60, 180, 300];
 const DEFAULT_FADE_SECONDS = 30;
