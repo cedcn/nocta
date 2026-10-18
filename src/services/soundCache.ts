@@ -74,3 +74,17 @@ export const clearSoundCache = () => {
     // Nothing to clear.
   }
 };
+
+// Sequential so a large batch doesn't saturate a weak connection; resolves with the number of failures.
+export async function downloadSounds(sounds: SoundMetadata[], onProgress?: (done: number) => void) {
+  let failed = 0;
+  for (let i = 0; i < sounds.length; i++) {
+    try {
+      await resolveSoundUri(sounds[i]);
+    } catch {
+      failed++;
+    }
+    onProgress?.(i + 1);
+  }
+  return failed;
+}

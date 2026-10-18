@@ -14,7 +14,7 @@ export function usePresetName() {
 }
 
 // Saves the current mix to a new preset, or offers to overwrite the selected one when presets are full.
-export function useSaveCurrentMix() {
+export function useSaveCurrentMix(onCreated: (presetId: string) => void) {
   const { t } = useTranslation();
   const presetName = usePresetName();
   const { presets, currentPresetId, playingSounds, saveMixAsNewPreset, saveToPreset } = useAudio();
@@ -26,7 +26,7 @@ export function useSaveCurrentMix() {
     }
     const id = saveMixAsNewPreset();
     if (id) {
-      Alert.alert(t('player.savedAs', { name: t('presets.defaultName', { n: presets.length + 1 }) }));
+      onCreated(id);
       return;
     }
     const index = Math.max(0, presets.findIndex((p) => p.id === currentPresetId));
@@ -43,5 +43,5 @@ export function useSaveCurrentMix() {
           ),
       },
     ]);
-  }, [currentPresetId, playingSounds, presetName, presets, saveMixAsNewPreset, saveToPreset, t]);
+  }, [currentPresetId, onCreated, playingSounds, presetName, presets, saveMixAsNewPreset, saveToPreset, t]);
 }

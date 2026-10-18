@@ -6,8 +6,9 @@ import Slider from '@react-native-community/slider';
 import { useAudio } from '../context/AudioContext';
 import { useLocalizedName } from '../i18n/LanguageProvider';
 import { getSoundById } from '../data/sounds';
-import { useSaveCurrentMix } from '../hooks/usePresetActions';
+import { usePresetName, useSaveCurrentMix } from '../hooks/usePresetActions';
 import GlassCard from './GlassCard';
+import PresetRenameModal from './PresetRenameModal';
 import { colors, radii, fontSize, shadow } from '../theme';
 
 const LIST_MAX_HEIGHT = 260;
@@ -15,12 +16,34 @@ const LIST_MAX_HEIGHT = 260;
 export default function FloatingPlayButton() {
   const { t } = useTranslation();
   const localizedName = useLocalizedName();
-  const { playingSounds, stopAll, isPaused, togglePause, masterVolume, setMasterVolume, setVolume, toggleSound } =
-    useAudio();
-  const saveMix = useSaveCurrentMix();
+  const {
+    playingSounds,
+    presets,
+    stopAll,
+    isPaused,
+    togglePause,
+    masterVolume,
+    setMasterVolume,
+    setVolume,
+    toggleSound,
+  } = useAudio();
+  const presetName = usePresetName();
   const [expanded, setExpanded] = useState(false);
+  // Offer a name right after saving so new presets don't all stay "Preset N".
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const saveMix = useSaveCurrentMix(setSavedId);
+  const savedIndex = presets.findIndex((p) => p.id === savedId);
 
-  if (playingSounds.length === 0) return null;
+  const renameModal = savedId && savedIndex >= 0 && (
+    <PresetRenameModal
+      key={savedId}
+      presetId={savedId}
+      title={t('player.savedAs', { name: presetName(presets[savedIndex], savedIndex) })}
+      onClose={() => setSavedId(null)}
+    />
+  );
+
+  if (playingSounds.length === 0) return renameModal || null;
 
   const slider = (value: number, onChange: (v: number) => void) => (
     <Slider
@@ -104,6 +127,7 @@ export default function FloatingPlayButton() {
           )}
         </TouchableOpacity>
       </View>
+      {renameModal}
     </View>
   );
 }

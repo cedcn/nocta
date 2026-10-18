@@ -1,5 +1,6 @@
 import React from 'react';
 import { Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { RotateCw } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAudio } from '../context/AudioContext';
 import { useLocalizedName } from '../i18n/LanguageProvider';
@@ -10,7 +11,7 @@ export default function SoundChip({ sound }: { sound: SoundMetadata }) {
   const localizedName = useLocalizedName();
   const { playingSounds, soundStates, toggleSound } = useAudio();
   const playing = playingSounds.some((p) => p.id === sound.id);
-  const loading = soundStates[sound.id] === 'loading';
+  const loadState = soundStates[sound.id];
   const { icon: Icon } = getCategoryStyle(sound.category);
   const tint = playing ? colors.textOnAccent : colors.textPrimary;
 
@@ -23,7 +24,13 @@ export default function SoundChip({ sound }: { sound: SoundMetadata }) {
       }}
       activeOpacity={0.8}
     >
-      {loading ? <ActivityIndicator size="small" color={colors.accent} /> : <Icon size={16} color={tint} />}
+      {loadState === 'loading' ? (
+        <ActivityIndicator size="small" color={colors.accent} />
+      ) : loadState === 'error' ? (
+        <RotateCw size={16} color={colors.danger} />
+      ) : (
+        <Icon size={16} color={tint} />
+      )}
       <Text style={[styles.text, { color: tint }]} numberOfLines={1}>
         {localizedName(sound)}
       </Text>

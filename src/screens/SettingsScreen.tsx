@@ -1,16 +1,19 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Modal, Alert } from 'react-native';
-import { Check, CircleStop, ExternalLink } from 'lucide-react-native';
+import { Check, CircleStop, Download, ExternalLink } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
 import { FADE_OPTIONS, TIMER_OPTIONS, useAudio } from '../context/AudioContext';
-import { clearSoundCache, getCacheSize } from '../services/soundCache';
+import { clearSoundCache, downloadSounds, getCacheSize, isSoundCached } from '../services/soundCache';
+import { getSoundById } from '../data/sounds';
+import { SoundMetadata } from '../types';
 import { useLanguage } from '../i18n/LanguageProvider';
 import { LANGUAGES, LanguagePreference } from '../i18n/languages';
 import ScreenBackground from '../components/ScreenBackground';
 import GlassCard from '../components/GlassCard';
+import ThemedSwitch from '../components/ThemedSwitch';
 import WeatherSettingsSection from '../components/weather/WeatherSettingsSection';
 import { colors, fontSize, radii } from '../theme';
 
@@ -29,10 +32,21 @@ interface Choice<T> {
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const { stopAll, autoCountdown, setAutoCountdown, fadeSeconds, setFadeSeconds } = useAudio();
+  const {
+    stopAll,
+    autoCountdown,
+    setAutoCountdown,
+    fadeSeconds,
+    setFadeSeconds,
+    mixWithOthers,
+    setMixWithOthers,
+    favorites,
+    presets,
+  } = useAudio();
   const { preference, setPreference } = useLanguage();
   const [picker, setPicker] = useState<PickerKind | null>(null);
   const [cacheSize, setCacheSize] = useState(0);
+  const [download, setDownload] = useState<{ done: number; total: number } | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -54,6 +68,22 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  };
+
+  const downloadForOffline = async () => {
+    const ids = new Set([...favorites, ...presets.flatMap((p) => p.sounds.map((s) => s.soundId))]);
+    const missing = [...ids]
+      .map((id) => getSoundById(id))
+      .filter((s): s is SoundMetadata => !!s && !isSoundCached(s));
+    if (missing.length === 0) {
+      Alert.alert(t('settings.downloadDone'));
+      return;
+    }
+    setDownload({ done: 0, total: missing.length });
+    const failed = await downloadSounds(missing, (done) => setDownload({ done, total: missing.length }));
+    setDownload(null);
+    setCacheSize(getCacheSize());
+    Alert.alert(failed > 0 ? t('settings.downloadFailed') : t('settings.downloadDone'));
   };
 
   const openUrl = (url: string) => {
@@ -165,11 +195,29 @@ export default function SettingsScreen() {
               <Text style={styles.itemText}>{t('settings.offlineCache')}</Text>
               <Text style={styles.itemDesc}>{t('settings.offlineCacheDesc', { size: formatBytes(cacheSize) })}</Text>
             </View>
-            <TouchableOpacity onPress={confirmClearCache} disabled={cacheSize === 0} hitSlop={8}>
-              <Text style={[styles.itemAction, cacheSize === 0 && styles.itemActionDisabled]}>
+            <TouchableOpacity onPress={confirmClearCache} disabled={cacheSize === 0 || !!download} hitSlop={8}>
+              <Text style={[styles.itemAction, (cacheSize === 0 || !!download) && styles.itemActionDisabled]}>
                 {t('settings.clearCache')}
               </Text>
             </TouchableOpacity>
+          </View>
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.item} onPress={downloadForOffline} disabled={!!download} activeOpacity={0.7}>
+            <View style={styles.itemTexts}>
+              <Text style={styles.itemText}>{t('settings.downloadOffline')}</Text>
+              <Text style={styles.itemDesc}>
+                {download ? t('settings.downloading', download) : t('settings.downloadOfflineDesc')}
+              </Text>
+            </View>
+            <Download size={22} color={download ? colors.textSecondary : colors.accent} />
+          </TouchableOpacity>
+          <View style={styles.divider} />
+          <View style={styles.item}>
+            <View style={styles.itemTexts}>
+              <Text style={styles.itemText}>{t('settings.mixWithOthers')}</Text>
+              <Text style={styles.itemDesc}>{t('settings.mixWithOthersDesc')}</Text>
+            </View>
+            <ThemedSwitch value={mixWithOthers} onValueChange={setMixWithOthers} />
           </View>
         </GlassCard>
 

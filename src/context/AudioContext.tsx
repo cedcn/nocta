@@ -1,12 +1,19 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { AudioPlayer, AudioStatus, createAudioPlayer } from 'expo-audio';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { PlayingSound, Preset } from '../types';
 import { getSoundById } from '../data/sounds';
 import { useLocalizedName } from '../i18n/LanguageProvider';
-import { APP_ARTIST, applyDefaultAudioMode, claimLockScreen, releaseLockScreen, updateLockScreen } from '../services/nowPlaying';
+import {
+  APP_ARTIST,
+  applyDefaultAudioMode,
+  claimLockScreen,
+  ownsLockScreen,
+  releaseLockScreen,
+  updateLockScreen,
+} from '../services/nowPlaying';
 import { resolveSoundUri } from '../services/soundCache';
 
 export const MAX_PRESETS = 10;
@@ -33,6 +40,7 @@ const STORAGE_KEYS = {
   FAVORITES: '@nocta_favorite_sounds',
   RECENTS: '@nocta_recent_sounds',
   LAST_MIX: '@nocta_last_mix',
+  MIX_WITH_OTHERS: '@nocta_mix_with_others',
   LEGACY_FAVORITES: '@nocta_favorites',
 };
 
@@ -84,6 +92,7 @@ interface AudioContextType {
   favorites: string[];
   recents: string[];
   lastMix: MixItem[];
+  mixWithOthers: boolean;
   toggleSound: (soundId: string) => Promise<void>;
   setVolume: (soundId: string, volume: number) => void;
   getVolume: (soundId: string) => number;
@@ -92,12 +101,13 @@ interface AudioContextType {
   stopAll: () => void;
   playMix: (items: MixItem[]) => Promise<void>;
   pauseAll: () => void;
-  resumeAll: () => Promise<void>;
+  resumeAll: () => void;
   fadeOutAndStopAll: (durationMs?: number) => Promise<void>;
   setTimer: (minutes: number | null) => void;
   extendTimer: (minutes?: number) => void;
   setAutoCountdown: (minutes: number | null) => void;
   setFadeSeconds: (seconds: number) => void;
+  setMixWithOthers: (enabled: boolean) => void;
   toggleFavorite: (soundId: string) => void;
   setCurrentPreset: (id: string) => void;
   addPreset: () => boolean;
@@ -172,6 +182,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recents, setRecents] = useState<string[]>([]);
   const [lastMix, setLastMix] = useState<MixItem[]>([]);
+  const [mixWithOthers, setMixWithOthersState] = useState(false);
+  // Bumped to make the lead player re-claim the lock screen after another player (meditation) took it.
+  const [lockScreenClaim, setLockScreenClaim] = useState(0);
 
   // Refs mirror state so async callbacks (timer, preset loading, downloads) never act on stale snapshots.
   const playingRef = useRef<PlayingSound[]>([]);
@@ -179,14 +192,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const masterRef = useRef(1);
   const fadeMsRef = useRef(DEFAULT_FADE_SECONDS * 1000);
   const presetsRef = useRef<Preset[]>(presets);
-  const pausedMixRef = useRef<MixItem[]>([]);
   const isPausedRef = useRef(false);
+  // True while the mix is paused by another experience (breathing, meditation) rather than by the user.
+  const interruptedRef = useRef(false);
+  const autoCountdownRef = useRef<number | null>(null);
   // Sounds the user asked for that are still downloading; removing an id cancels its start.
   const pendingRef = useRef(new Set<string>());
   const timerEndRef = useRef<number | null>(null);
   const timerMinutesRef = useRef<number | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fadeTokenRef = useRef(0);
+  // Fades scale every player by this gain, so volume changes and new sounds mid-fade stay on the curve.
+  const fadeGainRef = useRef(1);
   const timerFadingRef = useRef(false);
   const volumePersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -197,6 +214,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const setIsPaused = useCallback((paused: boolean) => {
     isPausedRef.current = paused;
+    if (!paused) interruptedRef.current = false;
     setIsPausedState(paused);
   }, []);
 
@@ -231,8 +249,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           STORAGE_KEYS.FAVORITES,
           STORAGE_KEYS.RECENTS,
           STORAGE_KEYS.LAST_MIX,
+          STORAGE_KEYS.MIX_WITH_OTHERS,
         ];
-        const [volumes, presetsData, current, auto, master, fade, favs, recent, mix] = await Promise.all(
+        const [volumes, presetsData, current, auto, master, fade, favs, recent, mix, mixOthers] = await Promise.all(
           keys.map((k) => AsyncStorage.getItem(k)),
         );
         volumesRef.current = parseJson(volumes, {});
@@ -241,7 +260,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         presetsRef.current = loaded;
         setPresetsState(loaded);
         setCurrentPresetId(loaded.some((p) => p.id === current) ? current! : loaded[0].id);
-        setAutoCountdownState(parseJson(auto, null));
+        autoCountdownRef.current = parseJson(auto, null);
+        setAutoCountdownState(autoCountdownRef.current);
         masterRef.current = parseJson(master, 1);
         setMasterVolumeState(masterRef.current);
         const fadeSec = parseJson(fade, DEFAULT_FADE_SECONDS);
@@ -250,6 +270,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setFavorites(parseJson(favs, []));
         setRecents(parseJson(recent, []));
         setLastMix(parseJson(mix, []));
+        setMixWithOthersState(parseJson(mixOthers, false));
         AsyncStorage.removeItem(STORAGE_KEYS.LEGACY_FAVORITES).catch(() => {});
       } catch (e) {
         console.error('Failed to load audio data', e);
@@ -257,28 +278,34 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     })();
   }, []);
 
-  const restoreVolumes = useCallback(() => {
-    playingRef.current.forEach((s) => setPlayerVolume(s.sound, s.volume * masterRef.current));
-  }, []);
+  const outputVolume = useCallback((volume: number) => volume * masterRef.current * fadeGainRef.current, []);
+
+  const applyVolumes = useCallback(() => {
+    playingRef.current.forEach((s) => setPlayerVolume(s.sound, outputVolume(s.volume)));
+  }, [outputVolume]);
 
   const cancelFade = useCallback(() => {
     fadeTokenRef.current++;
     timerFadingRef.current = false;
-    restoreVolumes();
-  }, [restoreVolumes]);
+    fadeGainRef.current = 1;
+    applyVolumes();
+  }, [applyVolumes]);
 
-  // Resolves false when cancelled; whoever cancels is responsible for restoring volumes.
-  const fadeOut = useCallback(async (durationMs: number) => {
-    const token = ++fadeTokenRef.current;
-    const targets = playingRef.current.map((s) => ({ player: s.sound, from: s.sound.volume }));
-    for (let step = 1; step <= FADE_STEPS; step++) {
-      await sleep(durationMs / FADE_STEPS);
-      if (fadeTokenRef.current !== token) return false;
-      const k = 1 - step / FADE_STEPS;
-      targets.forEach(({ player, from }) => setPlayerVolume(player, from * k));
-    }
-    return true;
-  }, []);
+  // Resolves false when cancelled; whoever cancels is responsible for restoring the gain.
+  const fadeOut = useCallback(
+    async (durationMs: number) => {
+      const token = ++fadeTokenRef.current;
+      const from = fadeGainRef.current;
+      for (let step = 1; step <= FADE_STEPS; step++) {
+        await sleep(durationMs / FADE_STEPS);
+        if (fadeTokenRef.current !== token) return false;
+        fadeGainRef.current = from * (1 - step / FADE_STEPS);
+        applyVolumes();
+      }
+      return true;
+    },
+    [applyVolumes],
+  );
 
   const clearTimer = useCallback(() => {
     if (tickRef.current) clearInterval(tickRef.current);
@@ -296,12 +323,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     playingRef.current.forEach((s) => disposePlayer(s.sound));
     setPlaying(() => []);
     setIsPaused(false);
+    setActivePresetId(null);
   }, [setIsPaused, setPlaying]);
 
   const stopAll = useCallback(() => {
     releaseAll();
-    pausedMixRef.current = [];
-    setActivePresetId(null);
     clearTimer();
   }, [clearTimer, releaseAll]);
 
@@ -315,61 +341,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, []);
 
-  const startSound = useCallback(
-    async (soundId: string, volume?: number) => {
-      if (playingRef.current.some((s) => s.id === soundId) || pendingRef.current.has(soundId)) return;
-      const soundData = getSoundById(soundId);
-      if (!soundData?.remoteUrl) return;
-
-      pendingRef.current.add(soundId);
-      setSoundState(soundId, 'loading');
-      let uri: string;
-      try {
-        uri = await resolveSoundUri(soundData);
-      } catch {
-        if (pendingRef.current.delete(soundId)) setSoundState(soundId, 'error');
-        return;
-      }
-      if (!pendingRef.current.delete(soundId)) return;
-      setSoundState(soundId, null);
-
-      const v = volume ?? getVolume(soundId);
-      const sound = createAudioPlayer(uri);
-      sound.loop = true;
-      sound.volume = v * masterRef.current;
-      sound.play();
-      setPlaying((prev) => [...prev, { id: soundId, sound, volume: v }]);
-      addRecent(soundId);
-      // Adding a sound to a paused mix resumes the whole mix.
-      if (isPausedRef.current) {
-        playingRef.current.forEach((s) => s.sound.play());
-        setIsPaused(false);
-      }
-    },
-    [addRecent, getVolume, setIsPaused, setPlaying, setSoundState],
-  );
-
-  const toggleSound = useCallback(
-    async (soundId: string) => {
-      if (pendingRef.current.delete(soundId)) {
-        setSoundState(soundId, null);
-        return;
-      }
-      const existing = playingRef.current.find((s) => s.id === soundId);
-      if (existing) {
-        disposePlayer(existing.sound);
-        setPlaying((prev) => prev.filter((s) => s.id !== soundId));
-        if (playingRef.current.length === 0) {
-          setActivePresetId(null);
-          setIsPaused(false);
-        }
-      } else {
-        await startSound(soundId);
-      }
-    },
-    [setIsPaused, setPlaying, setSoundState, startSound],
-  );
-
   const persistVolumes = useCallback(() => {
     if (volumePersistRef.current) clearTimeout(volumePersistRef.current);
     volumePersistRef.current = setTimeout(() => {
@@ -381,23 +352,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     (soundId: string, volume: number) => {
       const playing = playingRef.current.find((s) => s.id === soundId);
       if (playing) {
-        setPlayerVolume(playing.sound, volume * masterRef.current);
+        setPlayerVolume(playing.sound, outputVolume(volume));
         setPlaying((prev) => prev.map((s) => (s.id === soundId ? { ...s, volume } : s)));
       }
       volumesRef.current = { ...volumesRef.current, [soundId]: volume };
       persistVolumes();
     },
-    [persistVolumes, setPlaying],
+    [outputVolume, persistVolumes, setPlaying],
   );
 
   const setMasterVolume = useCallback(
     (volume: number) => {
       masterRef.current = volume;
       setMasterVolumeState(volume);
-      restoreVolumes();
+      applyVolumes();
       AsyncStorage.setItem(STORAGE_KEYS.MASTER_VOLUME, JSON.stringify(volume)).catch(() => {});
     },
-    [restoreVolumes],
+    [applyVolumes],
   );
 
   const togglePause = useCallback(() => {
@@ -464,6 +435,65 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [cancelFade, setTimer, startTicking],
   );
 
+  // Resolves false only when the download failed.
+  const startSound = useCallback(
+    async (soundId: string, volume?: number) => {
+      if (playingRef.current.some((s) => s.id === soundId) || pendingRef.current.has(soundId)) return true;
+      const soundData = getSoundById(soundId);
+      if (!soundData?.remoteUrl) return true;
+
+      pendingRef.current.add(soundId);
+      setSoundState(soundId, 'loading');
+      let uri: string;
+      try {
+        uri = await resolveSoundUri(soundData);
+      } catch {
+        if (!pendingRef.current.delete(soundId)) return true;
+        setSoundState(soundId, 'error');
+        return false;
+      }
+      if (!pendingRef.current.delete(soundId)) return true;
+      setSoundState(soundId, null);
+
+      const wasSilent = playingRef.current.length === 0;
+      const v = volume ?? getVolume(soundId);
+      const sound = createAudioPlayer(uri);
+      sound.loop = true;
+      sound.volume = outputVolume(v);
+      sound.play();
+      setPlaying((prev) => [...prev, { id: soundId, sound, volume: v }]);
+      addRecent(soundId);
+      // Adding a sound to a paused mix resumes the whole mix.
+      if (isPausedRef.current) {
+        playingRef.current.forEach((s) => s.sound.play());
+        setIsPaused(false);
+      }
+      if (wasSilent && autoCountdownRef.current && timerEndRef.current === null) setTimer(autoCountdownRef.current);
+      return true;
+    },
+    [addRecent, getVolume, outputVolume, setIsPaused, setPlaying, setSoundState, setTimer],
+  );
+
+  // Manual edits make the mix diverge from whichever preset started it.
+  const toggleSound = useCallback(
+    async (soundId: string) => {
+      setActivePresetId(null);
+      if (pendingRef.current.delete(soundId)) {
+        setSoundState(soundId, null);
+        return;
+      }
+      const existing = playingRef.current.find((s) => s.id === soundId);
+      if (existing) {
+        disposePlayer(existing.sound);
+        setPlaying((prev) => prev.filter((s) => s.id !== soundId));
+        if (playingRef.current.length === 0) setIsPaused(false);
+      } else {
+        await startSound(soundId);
+      }
+    },
+    [setIsPaused, setPlaying, setSoundState, startSound],
+  );
+
   // JS intervals can be throttled in the background; re-sync from the absolute end time on resume.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
@@ -506,8 +536,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   metadataRef.current = { title: mixTitle, artist: lockScreenArtist };
 
   useEffect(() => {
-    if (!leadPlayer) return;
+    if (!leadPlayer || mixWithOthers) return;
     claimLockScreen(leadPlayer, metadataRef.current);
+    return () => releaseLockScreen(leadPlayer);
+  }, [leadPlayer, mixWithOthers, lockScreenClaim]);
+
+  useEffect(() => {
+    if (!leadPlayer) return;
     let wasPlaying = true;
     const sub = leadPlayer.addListener('playbackStatusUpdate', (status: AudioStatus) => {
       if (!status.isLoaded || status.isBuffering || status.playing === wasPlaying) return;
@@ -526,31 +561,42 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (leadPlayer) updateLockScreen(leadPlayer, { title: mixTitle, artist: lockScreenArtist });
   }, [leadPlayer, mixTitle, lockScreenArtist]);
 
+  // Switching mixes keeps a running sleep timer.
   const playMix = useCallback(
     async (items: MixItem[]) => {
-      stopAll();
+      releaseAll();
       const limited = items.slice(0, MAX_PRESET_SOUNDS);
       limited.forEach((item) => setVolume(item.soundId, item.volume));
-      await Promise.all(limited.map((item) => startSound(item.soundId, item.volume)));
+      const results = await Promise.all(limited.map((item) => startSound(item.soundId, item.volume)));
+      if (results.includes(false)) Alert.alert(t('sound.mixFailed'));
     },
-    [setVolume, startSound, stopAll],
+    [releaseAll, setVolume, startSound, t],
   );
 
-  // Used when another audio experience (breathing, meditation, pomodoro alarm) takes over.
+  // Used when another audio experience (breathing, meditation) takes over; resumeAll undoes it.
   // The sleep timer keeps running, matching XMSLEEP's behaviour for temporary pauses.
   const pauseAll = useCallback(() => {
-    if (playingRef.current.length === 0 && pendingRef.current.size === 0) return;
-    pausedMixRef.current = playingRef.current.map((s) => ({ soundId: s.id, volume: s.volume }));
-    releaseAll();
-  }, [releaseAll]);
+    // A download finishing mid-session would otherwise resume the whole mix.
+    pendingRef.current.forEach((id) => setSoundState(id, null));
+    pendingRef.current.clear();
+    if (playingRef.current.length === 0 || isPausedRef.current) return;
+    playingRef.current.forEach((s) => s.sound.pause());
+    setIsPaused(true);
+    interruptedRef.current = true;
+  }, [setIsPaused, setSoundState]);
 
-  const resumeAll = useCallback(async () => {
-    const snapshot = pausedMixRef.current;
-    pausedMixRef.current = [];
-    await Promise.all(snapshot.map((item) => startSound(item.soundId, item.volume)));
-  }, [startSound]);
+  const resumeAll = useCallback(() => {
+    if (!interruptedRef.current) return;
+    interruptedRef.current = false;
+    const lead = playingRef.current[0]?.sound;
+    if (!lead || !isPausedRef.current) return;
+    playingRef.current.forEach((s) => s.sound.play());
+    setIsPaused(false);
+    if (!ownsLockScreen(lead)) setLockScreenClaim((n) => n + 1);
+  }, [setIsPaused]);
 
   const setAutoCountdown = useCallback((minutes: number | null) => {
+    autoCountdownRef.current = minutes;
     setAutoCountdownState(minutes);
     AsyncStorage.setItem(STORAGE_KEYS.AUTO_COUNTDOWN, JSON.stringify(minutes)).catch(() => {});
   }, []);
@@ -561,9 +607,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     AsyncStorage.setItem(STORAGE_KEYS.FADE_SECONDS, JSON.stringify(seconds)).catch(() => {});
   }, []);
 
+  const setMixWithOthers = useCallback((enabled: boolean) => {
+    setMixWithOthersState(enabled);
+    AsyncStorage.setItem(STORAGE_KEYS.MIX_WITH_OTHERS, JSON.stringify(enabled)).catch(() => {});
+  }, []);
+
   const toggleFavorite = useCallback((soundId: string) => {
     setFavorites((prev) => {
-      const next = prev.includes(soundId) ? prev.filter((id) => id !== soundId) : [soundId, ...prev];
+      const adding = !prev.includes(soundId);
+      const next = adding ? [soundId, ...prev] : prev.filter((id) => id !== soundId);
+      const sound = adding ? getSoundById(soundId) : undefined;
+      // Favorites are what people reach for at night, so make them available offline right away.
+      if (sound) resolveSoundUri(sound).catch(() => {});
       AsyncStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(next)).catch(() => {});
       return next;
     });
@@ -635,10 +690,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // playMix stops the previous mix synchronously, so mark the preset active right after it starts.
       const playback = playMix(preset.sounds);
       setActivePresetId(id);
-      if (autoCountdown) setTimer(autoCountdown);
       await playback;
     },
-    [autoCountdown, playMix, setTimer],
+    [playMix],
   );
 
   return (
@@ -658,6 +712,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         favorites,
         recents,
         lastMix,
+        mixWithOthers,
         toggleSound,
         setVolume,
         getVolume,
@@ -672,6 +727,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         extendTimer,
         setAutoCountdown,
         setFadeSeconds,
+        setMixWithOthers,
         toggleFavorite,
         setCurrentPreset,
         addPreset,

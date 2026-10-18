@@ -17,7 +17,7 @@ export interface PlayerState {
 }
 
 export function useMeditationPlayer(session: MeditationSession | undefined) {
-  const { pauseAll, timerRemaining } = useAudio();
+  const { pauseAll, resumeAll, timerRemaining } = useAudio();
   const localizedName = useLocalizedName();
   const [state, setState] = useState<PlayerState>({
     playing: false,
@@ -205,7 +205,13 @@ export function useMeditationPlayer(session: MeditationSession | undefined) {
     if (timerRemaining === 0) playerRef.current?.pause();
   }, [timerRemaining]);
 
-  useEffect(() => release, [release]);
+  useEffect(
+    () => () => {
+      release();
+      resumeAll();
+    },
+    [release, resumeAll],
+  );
 
   return { state, loading, error, loop, repeatCount, load, togglePlay, seekTo, skip, toggleLoop, cycleRepeat };
 }

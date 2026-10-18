@@ -5,11 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { StatusBar } from 'expo-status-bar';
 import { useKeepAwake } from 'expo-keep-awake';
+import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScreenBackground from '../../components/ScreenBackground';
 import GlassCard from '../../components/GlassCard';
 import FlipCard from '../../components/clock/FlipCard';
 import ClockCountdownDialog from '../../components/clock/ClockCountdownDialog';
+import { playRingtone, stopRingtone } from '../../components/pomodoro/ringtonePlayer';
 import { CLOCK_FONT_IDS, CLOCK_FONTS, ClockFontId } from '../../components/clock/clockFonts';
 import { useAudio } from '../../context/AudioContext';
 import { RootScreenProps } from '../../navigation';
@@ -17,6 +19,8 @@ import { colors, fontSize, radii, shadow } from '../../theme';
 
 const STORAGE_KEY = '@nocta_big_clock';
 const CONTROLS_HIDE_MS = 4000;
+const END_HAPTIC_TIMES = 3;
+const END_HAPTIC_GAP_MS = 600;
 
 type OrientationMode = 'all' | 'portrait' | 'landscape';
 const ORIENTATION_MODES: OrientationMode[] = ['all', 'portrait', 'landscape'];
@@ -122,6 +126,23 @@ export default function BigClockScreen({ navigation }: RootScreenProps<'BigClock
   const font = CLOCK_FONTS[prefs.font];
   const isLandscape = width > height;
   const inCountdown = countdownEnd !== null;
+  const countdownDone = inCountdown && now.getTime() >= countdownEnd;
+
+  useEffect(() => {
+    if (!countdownDone) return;
+    playRingtone('chime');
+    for (let i = 0; i < END_HAPTIC_TIMES; i++) {
+      setTimeout(() => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }, i * END_HAPTIC_GAP_MS);
+    }
+    setControlsVisible(true);
+  }, [countdownDone]);
+
+  const cancelCountdown = () => {
+    if (countdownDone) stopRingtone();
+    setCountdownEnd(null);
+  };
 
   let first: string;
   let second: string;
@@ -154,7 +175,7 @@ export default function BigClockScreen({ navigation }: RootScreenProps<'BigClock
   const controls = [
     { key: 'back', Icon: ArrowLeft, label: t('back'), onPress: () => navigation.goBack(), active: false },
     inCountdown
-      ? { key: 'cancel', Icon: TimerOff, label: t('cancelCountdown'), onPress: interact(() => setCountdownEnd(null)), active: true }
+      ? { key: 'cancel', Icon: TimerOff, label: t('cancelCountdown'), onPress: interact(cancelCountdown), active: true }
       : { key: 'countdown', Icon: Hourglass, label: t('countdown'), onPress: () => setDialog('countdown'), active: false },
     { key: 'font', Icon: Type, label: t('font'), onPress: () => setDialog('font'), active: false },
     {
@@ -191,14 +212,19 @@ export default function BigClockScreen({ navigation }: RootScreenProps<'BigClock
           <FlipCard value={second} size={cardSize} font={font} corner={seconds} />
         </Animated.View>
 
-        {timerRemaining !== null && (
+        {countdownDone ? (
+          <View style={[styles.sleepPill, { top: insets.top + 16 }]}>
+            <Hourglass size={14} color={colors.accent} />
+            <Text style={styles.sleepText}>{t('countdownEnded')}</Text>
+          </View>
+        ) : timerRemaining !== null ? (
           <View style={[styles.sleepPill, { top: insets.top + 16 }]}>
             <Moon size={14} color={colors.accent} />
             <Text style={styles.sleepText}>
               {t('sleepTimer')} · {formatSeconds(timerRemaining)}
             </Text>
           </View>
-        )}
+        ) : null}
       </Pressable>
 
       <Animated.View

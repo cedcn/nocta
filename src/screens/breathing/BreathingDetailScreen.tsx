@@ -33,7 +33,7 @@ const formatClock = (seconds: number) =>
 export default function BreathingDetailScreen({ route, navigation }: RootScreenProps<'BreathingDetail'>) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation('breathing');
-  const { pauseAll } = useAudio();
+  const { pauseAll, resumeAll } = useAudio();
   const method = getBreathingMethod(route.params.methodId) ?? BREATHING_METHODS[0];
   const phases = useMemo(() => methodPhases(method), [method]);
 
@@ -83,7 +83,8 @@ export default function BreathingDetailScreen({ route, navigation }: RootScreenP
     deactivateKeepAwake(KEEP_AWAKE_TAG);
     setSession(null);
     setFinished(completed);
-  }, []);
+    resumeAll();
+  }, [resumeAll]);
 
   const tick = useCallback(() => {
     setSession((prev) => {

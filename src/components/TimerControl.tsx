@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import { Timer } from 'lucide-react-native';
+import { Moon } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { TIMER_EXTEND_MINUTES, TIMER_OPTIONS, useAudio } from '../context/AudioContext';
 import MinuteRuler from './pomodoro/MinuteRuler';
@@ -36,7 +36,7 @@ export default function TimerControl() {
     <GlassCard style={styles.card}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Timer size={18} color={colors.textPrimary} />
+          <Moon size={18} color={colors.textPrimary} />
           <Text style={styles.title}>{t('timer.title')}</Text>
         </View>
         {timerRemaining !== null ? (

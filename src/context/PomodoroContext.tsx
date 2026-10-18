@@ -3,7 +3,6 @@ import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import i18n from '../i18n';
-import { useAudio } from './AudioContext';
 import {
   RingtoneId,
   cancelNotification,
@@ -114,7 +113,6 @@ const phaseMinutes = (s: PersistedState, phase: PomodoroPhase) =>
 const PomodoroContext = createContext<PomodoroContextType | undefined>(undefined);
 
 export function PomodoroProvider({ children }: { children: React.ReactNode }) {
-  const { pauseAll } = useAudio();
   const [state, setStateRaw] = useState<PersistedState>(initialState);
   const [now, setNow] = useState(() => Date.now());
   const [completionTick, setCompletionTick] = useState(0);
@@ -133,8 +131,8 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
     (announce: boolean) => {
       const s = stateRef.current;
       const finishedFocus = s.phase === 'focus';
+      // The ringtone plays over any white noise; a focus mix keeps going into the break.
       if (announce) {
-        pauseAll();
         if (s.settings.ringtone) playRingtone(s.settings.ringtone);
         if (s.settings.vibrate) {
           for (let i = 0; i < HAPTIC_TIMES; i++) {
@@ -170,7 +168,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       });
       setCompletionTick((t) => t + 1);
     },
-    [pauseAll, setState],
+    [setState],
   );
 
   const sync = useCallback(() => {

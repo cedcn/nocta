@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { MAX_PRESETS, MAX_PRESET_SOUNDS, MIN_PRESETS, useAudio } from '../context/AudioContext';
 import { Preset } from '../types';
 import { usePresetName } from '../hooks/usePresetActions';
-import GlassCard from './GlassCard';
+import PresetRenameModal from './PresetRenameModal';
 import { colors, radii, fontSize, shadow } from '../theme';
 
 export default function PresetBar() {
@@ -20,24 +20,12 @@ export default function PresetBar() {
     stopAll,
     saveToPreset,
     addPreset,
-    renamePreset,
     deletePreset,
     playingSounds,
   } = useAudio();
-  const [renaming, setRenaming] = useState<Preset | null>(null);
-  const [draftName, setDraftName] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
 
   const displayName = usePresetName();
-
-  const handlePress = (preset: Preset) => {
-    Haptics.selectionAsync().catch(() => {});
-    setCurrentPreset(preset.id);
-    if (activePresetId === preset.id && playingSounds.length > 0) {
-      stopAll();
-    } else if (preset.sounds.length > 0) {
-      loadPreset(preset.id);
-    }
-  };
 
   const handleSave = (preset: Preset) => {
     if (playingSounds.length === 0) {
@@ -51,6 +39,23 @@ export default function PresetBar() {
       preset.id,
       playingSounds.map((p) => p.id),
     );
+  };
+
+  const handlePress = (preset: Preset, index: number) => {
+    Haptics.selectionAsync().catch(() => {});
+    setCurrentPreset(preset.id);
+    if (activePresetId === preset.id && playingSounds.length > 0) {
+      stopAll();
+    } else if (preset.sounds.length > 0) {
+      loadPreset(preset.id);
+    } else if (playingSounds.length > 0) {
+      Alert.alert(t('presets.saveToEmpty', { name: displayName(preset, index) }), undefined, [
+        { text: t('actions.cancel'), style: 'cancel' },
+        { text: t('actions.save'), onPress: () => handleSave(preset) },
+      ]);
+    } else {
+      Alert.alert(t('presets.empty'));
+    }
   };
 
   const handleDelete = (preset: Preset, index: number) => {
@@ -69,10 +74,7 @@ export default function PresetBar() {
       { text: t('presets.saveCurrent'), onPress: () => handleSave(preset) },
       {
         text: t('actions.rename'),
-        onPress: () => {
-          setDraftName(preset.name);
-          setRenaming(preset);
-        },
+        onPress: () => setRenamingId(preset.id),
       },
       { text: t('actions.delete'), style: 'destructive', onPress: () => handleDelete(preset, index) },
       { text: t('actions.cancel'), style: 'cancel' },
@@ -81,11 +83,6 @@ export default function PresetBar() {
 
   const handleAdd = () => {
     if (!addPreset()) Alert.alert(t('presets.maxPresets', { count: MAX_PRESETS }));
-  };
-
-  const submitRename = () => {
-    if (renaming) renamePreset(renaming.id, draftName);
-    setRenaming(null);
   };
 
   return (
@@ -100,7 +97,7 @@ export default function PresetBar() {
             <TouchableOpacity
               key={preset.id}
               style={[styles.preset, selected && styles.presetSelected, active && styles.presetActive]}
-              onPress={() => handlePress(preset)}
+              onPress={() => handlePress(preset, index)}
               onLongPress={() => handleLongPress(preset, index)}
               activeOpacity={0.8}
             >
@@ -120,31 +117,14 @@ export default function PresetBar() {
         )}
       </ScrollView>
 
-      <Modal visible={renaming !== null} transparent animationType="fade" onRequestClose={() => setRenaming(null)}>
-        <View style={styles.backdrop}>
-          <GlassCard strong style={styles.dialog}>
-            <Text style={styles.dialogTitle}>{t('presets.renameTitle')}</Text>
-            <TextInput
-              style={styles.input}
-              value={draftName}
-              onChangeText={setDraftName}
-              placeholder={renaming ? displayName(renaming, presets.indexOf(renaming)) : ''}
-              placeholderTextColor={colors.textSecondary}
-              maxLength={20}
-              autoFocus
-              onSubmitEditing={submitRename}
-            />
-            <View style={styles.dialogActions}>
-              <TouchableOpacity onPress={() => setRenaming(null)} hitSlop={8}>
-                <Text style={styles.dialogCancel}>{t('actions.cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={submitRename} hitSlop={8}>
-                <Text style={styles.dialogConfirm}>{t('actions.save')}</Text>
-              </TouchableOpacity>
-            </View>
-          </GlassCard>
-        </View>
-      </Modal>
+      {renamingId && (
+        <PresetRenameModal
+          key={renamingId}
+          presetId={renamingId}
+          title={t('presets.renameTitle')}
+          onClose={() => setRenamingId(null)}
+        />
+      )}
     </View>
   );
 }
@@ -174,23 +154,4 @@ const styles = StyleSheet.create({
   presetCount: { fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 4 },
   presetTextActive: { color: colors.textOnAccent },
   addButton: { minWidth: 70, borderStyle: 'dashed', borderColor: colors.accent },
-  backdrop: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: 'center',
-    padding: 32,
-  },
-  dialog: { padding: 20 },
-  dialogTitle: { fontSize: fontSize.subtitle, color: colors.textPrimary, fontWeight: '700', marginBottom: 14 },
-  input: {
-    backgroundColor: colors.glass,
-    borderRadius: radii.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: fontSize.subtitle,
-    color: colors.textPrimary,
-  },
-  dialogActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 24, marginTop: 18 },
-  dialogCancel: { fontSize: fontSize.subtitle, color: colors.textSecondary, fontWeight: '600' },
-  dialogConfirm: { fontSize: fontSize.subtitle, color: colors.accent, fontWeight: '700' },
 });

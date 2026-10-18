@@ -17,7 +17,7 @@ export default function WeatherCard() {
   const { t } = useTranslation('weather');
   const localizedName = useLocalizedName();
   const { enabled, weather, status, refresh } = useWeather();
-  const { playingSounds, playMix, stopAll, getVolume } = useAudio();
+  const { playingSounds, playMix, toggleSound, getVolume } = useAudio();
   useSoundsManifest();
 
   if (!enabled) return null;
@@ -47,7 +47,8 @@ export default function WeatherCard() {
   const feelsLike = Math.round(weather.feelsLike);
 
   const toggleMix = () => {
-    if (mixPlaying) stopAll();
+    // Only stop the recommended sounds; anything the user layered on top keeps playing.
+    if (mixPlaying) recommended.forEach((id) => toggleSound(id));
     else playMix(recommended.map((id) => ({ soundId: id, volume: getVolume(id) })));
   };
 
