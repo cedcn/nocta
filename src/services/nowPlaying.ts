@@ -26,8 +26,6 @@ export async function claimLockScreen(
   }
 }
 
-export const ownsLockScreen = (player: AudioPlayer) => owner === player;
-
 export function updateLockScreen(player: AudioPlayer, metadata: AudioMetadata) {
   if (owner !== player) return;
   try {

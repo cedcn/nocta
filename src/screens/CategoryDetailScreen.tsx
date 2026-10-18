@@ -9,13 +9,14 @@ import { useLocalizedName } from '../i18n/LanguageProvider';
 import ScreenBackground from '../components/ScreenBackground';
 import GlassCard from '../components/GlassCard';
 import SoundRow from '../components/SoundRow';
-import FloatingPlayButton from '../components/FloatingPlayButton';
 import { colors, radii, fontSize, shadow, getCategoryStyle } from '../theme';
 import { CategoryDetailProps } from '../navigation';
+import { useMiniPlayerInset } from '../hooks/useMiniPlayerInset';
 
 export default function CategoryDetailScreen({ route, navigation }: CategoryDetailProps) {
   const [activeId, setActiveId] = useState(route.params.categoryId);
   const insets = useSafeAreaInsets();
+  const miniPlayerInset = useMiniPlayerInset();
   const { t } = useTranslation();
   const localizedName = useLocalizedName();
   const { playingSounds } = useAudio();
@@ -36,7 +37,7 @@ export default function CategoryDetailScreen({ route, navigation }: CategoryDeta
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 180 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 + miniPlayerInset }]}
       >
         <View style={styles.hero}>
           <GlassCard strong style={styles.heroBadge}>
@@ -68,7 +69,6 @@ export default function CategoryDetailScreen({ route, navigation }: CategoryDeta
         ))}
       </ScrollView>
 
-      <FloatingPlayButton />
     </ScreenBackground>
   );
 }

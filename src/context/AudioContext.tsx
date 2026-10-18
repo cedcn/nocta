@@ -5,16 +5,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { PlayingSound, Preset } from '../types';
 import { getSoundById } from '../data/sounds';
+import { getMeditationCategory, MeditationSession } from '../data/meditation';
 import { useLocalizedName } from '../i18n/LanguageProvider';
 import {
   APP_ARTIST,
   applyDefaultAudioMode,
   claimLockScreen,
-  ownsLockScreen,
   releaseLockScreen,
   updateLockScreen,
 } from '../services/nowPlaying';
 import { resolveSoundUri } from '../services/soundCache';
+import { createMeditationPlayback, MAX_REPEAT, MeditationPlayback } from '../services/meditationPlayer';
 
 export const MAX_PRESETS = 10;
 export const MIN_PRESETS = 3;
@@ -25,7 +26,7 @@ export const FADE_OPTIONS = [5, 30, 60, 180, 300];
 const DEFAULT_FADE_SECONDS = 30;
 const DEFAULT_VOLUME = 0.5;
 const FADE_STEPS = 30;
-// Short tail after the timer hits zero so listeners (e.g. meditation) can observe `timerRemaining === 0`.
+// Short tail after the timer hits zero so the countdown visibly reaches 0:00 before playback stops.
 const TIMER_END_FADE_MS = 1000;
 const PERSIST_DELAY_MS = 300;
 const MAX_RECENTS = 12;
@@ -77,6 +78,12 @@ export interface MixItem {
   volume: number;
 }
 
+export interface MeditationState {
+  session: MeditationSession;
+  loading: boolean;
+  error: boolean;
+}
+
 interface AudioContextType {
   playingSounds: PlayingSound[];
   soundStates: Record<string, SoundLoadState>;
@@ -93,11 +100,27 @@ interface AudioContextType {
   recents: string[];
   lastMix: MixItem[];
   mixWithOthers: boolean;
+  /** The meditation currently owning playback; white noise is paused while it is set. */
+  meditation: MeditationState | null;
+  meditationLoop: boolean;
+  meditationRepeat: number;
+  /** True while breathing has paused playback; the mini player must not resume it meanwhile. */
+  suspended: boolean;
+  /** Localized names of the sounds in the mix, joined for display. */
+  mixTitle: string;
   toggleSound: (soundId: string) => Promise<void>;
   setVolume: (soundId: string, volume: number) => void;
   getVolume: (soundId: string) => number;
   setMasterVolume: (volume: number) => void;
   togglePause: () => void;
+  /** Play/pause whichever source is active (meditation or the mix). */
+  togglePlayback: () => void;
+  playMeditation: (session: MeditationSession) => void;
+  toggleMeditation: () => void;
+  seekMeditation: (seconds: number) => void;
+  toggleMeditationLoop: () => void;
+  cycleMeditationRepeat: () => void;
+  stopMeditation: () => void;
   stopAll: () => void;
   playMix: (items: MixItem[]) => Promise<void>;
   pauseAll: () => void;
@@ -183,8 +206,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [recents, setRecents] = useState<string[]>([]);
   const [lastMix, setLastMix] = useState<MixItem[]>([]);
   const [mixWithOthers, setMixWithOthersState] = useState(false);
-  // Bumped to make the lead player re-claim the lock screen after another player (meditation) took it.
-  const [lockScreenClaim, setLockScreenClaim] = useState(0);
+  const [meditation, setMeditationState] = useState<MeditationState | null>(null);
+  const [meditationPlayer, setMeditationPlayer] = useState<AudioPlayer | null>(null);
+  const [meditationLoop, setMeditationLoop] = useState(true);
+  const [meditationRepeat, setMeditationRepeat] = useState(0);
+  const [suspended, setSuspended] = useState(false);
 
   // Refs mirror state so async callbacks (timer, preset loading, downloads) never act on stale snapshots.
   const playingRef = useRef<PlayingSound[]>([]);
@@ -195,6 +221,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const isPausedRef = useRef(false);
   // True while the mix is paused by another experience (breathing, meditation) rather than by the user.
   const interruptedRef = useRef(false);
+  const meditationRef = useRef<MeditationPlayback | null>(null);
+  // Read synchronously so a double tap can't start the same session twice before a re-render.
+  const meditationSessionIdRef = useRef<string | null>(null);
+  // True while meditation is paused by breathing rather than by the user.
+  const meditationInterruptedRef = useRef(false);
   const autoCountdownRef = useRef<number | null>(null);
   // Sounds the user asked for that are still downloading; removing an id cancels its start.
   const pendingRef = useRef(new Set<string>());
@@ -280,8 +311,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const outputVolume = useCallback((volume: number) => volume * masterRef.current * fadeGainRef.current, []);
 
+  // Meditation ignores the mix's master volume but follows the sleep-timer fade.
   const applyVolumes = useCallback(() => {
     playingRef.current.forEach((s) => setPlayerVolume(s.sound, outputVolume(s.volume)));
+    meditationRef.current?.setVolume(fadeGainRef.current);
   }, [outputVolume]);
 
   const cancelFade = useCallback(() => {
@@ -326,10 +359,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setActivePresetId(null);
   }, [setIsPaused, setPlaying]);
 
+  const releaseMeditation = useCallback(() => {
+    meditationRef.current?.release();
+    meditationRef.current = null;
+    meditationSessionIdRef.current = null;
+    meditationInterruptedRef.current = false;
+    setMeditationState(null);
+    setMeditationPlayer(null);
+  }, []);
+
   const stopAll = useCallback(() => {
+    releaseMeditation();
     releaseAll();
     clearTimer();
-  }, [clearTimer, releaseAll]);
+  }, [clearTimer, releaseAll, releaseMeditation]);
 
   const getVolume = useCallback((soundId: string) => volumesRef.current[soundId] ?? DEFAULT_VOLUME, []);
 
@@ -371,12 +414,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [applyVolumes],
   );
 
+  // Resuming the mix explicitly ends any meditation that paused it.
   const togglePause = useCallback(() => {
+    if (meditationRef.current) {
+      releaseMeditation();
+      if (playingRef.current.length === 0) return;
+      playingRef.current.forEach((s) => s.sound.play());
+      setIsPaused(false);
+      return;
+    }
     if (playingRef.current.length === 0) return;
     const next = !isPausedRef.current;
     playingRef.current.forEach((s) => (next ? s.sound.pause() : s.sound.play()));
     setIsPaused(next);
-  }, [setIsPaused]);
+  }, [releaseMeditation, setIsPaused]);
 
   const fadeOutAndStopAll = useCallback(
     async (durationMs: number = fadeMsRef.current) => {
@@ -441,6 +492,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (playingRef.current.some((s) => s.id === soundId) || pendingRef.current.has(soundId)) return true;
       const soundData = getSoundById(soundId);
       if (!soundData?.remoteUrl) return true;
+      // Picking white noise ends a meditation, and the mix it paused is replaced rather than resumed.
+      if (meditationRef.current) {
+        releaseMeditation();
+        releaseAll();
+      }
 
       pendingRef.current.add(soundId);
       setSoundState(soundId, 'loading');
@@ -471,7 +527,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (wasSilent && autoCountdownRef.current && timerEndRef.current === null) setTimer(autoCountdownRef.current);
       return true;
     },
-    [addRecent, getVolume, outputVolume, setIsPaused, setPlaying, setSoundState, setTimer],
+    [addRecent, getVolume, outputVolume, releaseAll, releaseMeditation, setIsPaused, setPlaying, setSoundState, setTimer],
   );
 
   // Manual edits make the mix diverge from whichever preset started it.
@@ -506,6 +562,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     () => () => {
       if (tickRef.current) clearInterval(tickRef.current);
       if (volumePersistRef.current) clearTimeout(volumePersistRef.current);
+      meditationRef.current?.release();
     },
     [],
   );
@@ -522,60 +579,76 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // The first sound in the mix represents the whole mix on the lock screen / Dynamic Island /
   // media notification. System controls only drive that player, so mirror its play/pause to the rest.
-  const leadPlayer = playingSounds[0]?.sound;
+  // A meditation takes the lock screen over while it plays.
+  // While a meditation owns playback the paused mix must not take the lock screen, even if the stream
+  // is still loading or failed; otherwise lock-screen play would resume the mix under meditation metadata.
+  const mixLead = playingSounds[0]?.sound;
+  const leadPlayer = meditation ? meditationPlayer : mixLead;
+  const meditationCategory = meditation ? getMeditationCategory(meditation.session.category) : undefined;
   const mixTitle = playingSounds
     .map((s) => {
       const sound = getSoundById(s.id);
       return sound ? localizedName(sound) : s.id;
     })
     .join(' · ');
+  const lockScreenTitle = meditation ? localizedName(meditation.session) : mixTitle;
+  const artistBase = meditationCategory ? localizedName(meditationCategory) : APP_ARTIST;
   const remainingMinutes = timerRemaining === null ? null : Math.ceil(timerRemaining / 60);
   const lockScreenArtist =
-    remainingMinutes === null ? APP_ARTIST : `${APP_ARTIST} · ${t('timer.remaining', { count: remainingMinutes })}`;
-  const metadataRef = useRef({ title: mixTitle, artist: lockScreenArtist });
-  metadataRef.current = { title: mixTitle, artist: lockScreenArtist };
+    remainingMinutes === null ? artistBase : `${artistBase} · ${t('timer.remaining', { count: remainingMinutes })}`;
+  const lockScreenMetadata = {
+    title: lockScreenTitle,
+    artist: lockScreenArtist,
+    ...(meditation ? { albumTitle: APP_ARTIST, artworkUrl: meditation.session.coverUrl } : null),
+  };
+  const metadataRef = useRef(lockScreenMetadata);
+  metadataRef.current = lockScreenMetadata;
+  const isMeditationLead = !!meditationPlayer;
 
   useEffect(() => {
     if (!leadPlayer || mixWithOthers) return;
-    claimLockScreen(leadPlayer, metadataRef.current);
+    claimLockScreen(
+      leadPlayer,
+      metadataRef.current,
+      isMeditationLead ? { showSeekForward: true, showSeekBackward: true } : undefined,
+    );
     return () => releaseLockScreen(leadPlayer);
-  }, [leadPlayer, mixWithOthers, lockScreenClaim]);
+  }, [leadPlayer, isMeditationLead, mixWithOthers]);
 
   useEffect(() => {
-    if (!leadPlayer) return;
+    if (!mixLead) return;
     let wasPlaying = true;
-    const sub = leadPlayer.addListener('playbackStatusUpdate', (status: AudioStatus) => {
+    const sub = mixLead.addListener('playbackStatusUpdate', (status: AudioStatus) => {
       if (!status.isLoaded || status.isBuffering || status.playing === wasPlaying) return;
       wasPlaying = status.playing;
       setIsPaused(!status.playing);
       playingRef.current.forEach((s) => {
-        if (s.sound === leadPlayer) return;
+        if (s.sound === mixLead) return;
         if (status.playing) s.sound.play();
         else s.sound.pause();
       });
     });
     return () => sub.remove();
-  }, [leadPlayer, setIsPaused]);
+  }, [mixLead, setIsPaused]);
 
   useEffect(() => {
-    if (leadPlayer) updateLockScreen(leadPlayer, { title: mixTitle, artist: lockScreenArtist });
-  }, [leadPlayer, mixTitle, lockScreenArtist]);
+    if (leadPlayer) updateLockScreen(leadPlayer, metadataRef.current);
+  }, [leadPlayer, lockScreenTitle, lockScreenArtist]);
 
   // Switching mixes keeps a running sleep timer.
   const playMix = useCallback(
     async (items: MixItem[]) => {
+      releaseMeditation();
       releaseAll();
       const limited = items.slice(0, MAX_PRESET_SOUNDS);
       limited.forEach((item) => setVolume(item.soundId, item.volume));
       const results = await Promise.all(limited.map((item) => startSound(item.soundId, item.volume)));
       if (results.includes(false)) Alert.alert(t('sound.mixFailed'));
     },
-    [releaseAll, setVolume, startSound, t],
+    [releaseAll, releaseMeditation, setVolume, startSound, t],
   );
 
-  // Used when another audio experience (breathing, meditation) takes over; resumeAll undoes it.
-  // The sleep timer keeps running, matching XMSLEEP's behaviour for temporary pauses.
-  const pauseAll = useCallback(() => {
+  const pauseMix = useCallback(() => {
     // A download finishing mid-session would otherwise resume the whole mix.
     pendingRef.current.forEach((id) => setSoundState(id, null));
     pendingRef.current.clear();
@@ -585,15 +658,103 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     interruptedRef.current = true;
   }, [setIsPaused, setSoundState]);
 
-  const resumeAll = useCallback(() => {
+  const resumeMix = useCallback(() => {
     if (!interruptedRef.current) return;
     interruptedRef.current = false;
-    const lead = playingRef.current[0]?.sound;
-    if (!lead || !isPausedRef.current) return;
+    if (playingRef.current.length === 0 || !isPausedRef.current) return;
     playingRef.current.forEach((s) => s.sound.play());
     setIsPaused(false);
-    if (!ownsLockScreen(lead)) setLockScreenClaim((n) => n + 1);
   }, [setIsPaused]);
+
+  // Used when breathing takes over the active source; resumeAll undoes it.
+  // The sleep timer keeps running, matching XMSLEEP's behaviour for temporary pauses.
+  const pauseAll = useCallback(() => {
+    setSuspended(true);
+    const playback = meditationRef.current;
+    if (!playback) {
+      pauseMix();
+      return;
+    }
+    if (playback.active) {
+      playback.pause();
+      meditationInterruptedRef.current = true;
+    }
+  }, [pauseMix]);
+
+  const resumeAll = useCallback(() => {
+    setSuspended(false);
+    const playback = meditationRef.current;
+    if (!playback) {
+      resumeMix();
+      return;
+    }
+    if (meditationInterruptedRef.current) {
+      meditationInterruptedRef.current = false;
+      playback.play();
+    }
+  }, [resumeMix]);
+
+  // Ends the meditation and gives playback back to the mix it paused.
+  const stopMeditation = useCallback(() => {
+    releaseMeditation();
+    resumeMix();
+  }, [releaseMeditation, resumeMix]);
+
+  const playMeditation = useCallback(
+    (session: MeditationSession) => {
+      const current = meditationRef.current;
+      if (current && meditationSessionIdRef.current === session.id) {
+        if (!current.active) current.toggle();
+        return;
+      }
+      releaseMeditation();
+      pauseMix();
+      const update = (patch: Partial<MeditationState>) =>
+        setMeditationState((prev) => (prev && prev.session.id === session.id ? { ...prev, ...patch } : prev));
+      const playback = createMeditationPlayback(
+        session,
+        { loop: meditationLoop, repeat: meditationRepeat, volume: fadeGainRef.current },
+        {
+          onPlayer: (player) => {
+            if (meditationRef.current === playback) setMeditationPlayer(player);
+          },
+          onLoading: (loading) => update(loading ? { loading, error: false } : { loading }),
+          onError: () => update({ error: true }),
+          onFinished: () => {
+            if (meditationRef.current === playback) stopMeditation();
+          },
+        },
+      );
+      meditationRef.current = playback;
+      meditationSessionIdRef.current = session.id;
+      setMeditationState({ session, loading: true, error: false });
+      if (autoCountdownRef.current && timerEndRef.current === null) setTimer(autoCountdownRef.current);
+    },
+    [meditationLoop, meditationRepeat, pauseMix, releaseMeditation, setTimer, stopMeditation],
+  );
+
+  const toggleMeditation = useCallback(() => meditationRef.current?.toggle(), []);
+
+  const seekMeditation = useCallback((seconds: number) => meditationRef.current?.seekTo(seconds), []);
+
+  const toggleMeditationLoop = useCallback(() => {
+    const next = !meditationLoop;
+    setMeditationLoop(next);
+    if (next) setMeditationRepeat(0);
+    meditationRef.current?.setLoop(next);
+  }, [meditationLoop]);
+
+  const cycleMeditationRepeat = useCallback(() => {
+    const next = (meditationRepeat + 1) % (MAX_REPEAT + 1);
+    setMeditationRepeat(next);
+    if (next > 0) setMeditationLoop(false);
+    meditationRef.current?.setRepeat(next);
+  }, [meditationRepeat]);
+
+  const togglePlayback = useCallback(() => {
+    if (meditationRef.current) meditationRef.current.toggle();
+    else togglePause();
+  }, [togglePause]);
 
   const setAutoCountdown = useCallback((minutes: number | null) => {
     autoCountdownRef.current = minutes;
@@ -713,11 +874,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         recents,
         lastMix,
         mixWithOthers,
+        meditation,
+        meditationLoop,
+        meditationRepeat,
+        suspended,
+        mixTitle,
         toggleSound,
         setVolume,
         getVolume,
         setMasterVolume,
         togglePause,
+        togglePlayback,
+        playMeditation,
+        toggleMeditation,
+        seekMeditation,
+        toggleMeditationLoop,
+        cycleMeditationRepeat,
+        stopMeditation,
         stopAll,
         playMix,
         pauseAll,

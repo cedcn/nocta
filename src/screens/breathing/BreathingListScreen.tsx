@@ -13,11 +13,13 @@ import GlassCard from '../../components/GlassCard';
 import RhythmBars from '../../components/breathing/RhythmBars';
 import BreathingTutorialModal from '../../components/breathing/BreathingTutorialModal';
 import { colors, radii, fontSize, shadow } from '../../theme';
+import { useMiniPlayerInset } from '../../hooks/useMiniPlayerInset';
 
 const CARD_GAP = 14;
 
 export default function BreathingListScreen() {
   const insets = useSafeAreaInsets();
+  const miniPlayerInset = useMiniPlayerInset();
   const { width } = useWindowDimensions();
   const { t } = useTranslation('breathing');
   const { t: tm } = useTranslation('meditation');
@@ -91,7 +93,7 @@ export default function BreathingListScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 110 + miniPlayerInset }}
       >
         <Text style={styles.sectionTitle}>{tm('title')}</Text>
         <ScrollView

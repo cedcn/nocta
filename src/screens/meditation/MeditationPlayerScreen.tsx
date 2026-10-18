@@ -9,7 +9,8 @@ import { useLocalizedName } from '../../i18n/LanguageProvider';
 import { RootScreenProps } from '../../navigation';
 import ScreenBackground from '../../components/ScreenBackground';
 import BackBar from '../../components/breathing/BackBar';
-import { useMeditationPlayer } from '../../components/meditation/useMeditationPlayer';
+import { useAudio } from '../../context/AudioContext';
+import { useMeditationProgress } from '../../services/meditationPlayer';
 import { colors, radii, fontSize, shadow } from '../../theme';
 
 const COVER_SIZE = 220;
@@ -20,13 +21,39 @@ export default function MeditationPlayerScreen({ route, navigation }: RootScreen
   const { t } = useTranslation('meditation');
   const localizedName = useLocalizedName();
   const session = getMeditationSession(route.params.sessionId);
-  const { state, loading, error, loop, repeatCount, load, togglePlay, seekTo, skip, toggleLoop, cycleRepeat } =
-    useMeditationPlayer(session);
+  const {
+    meditation,
+    meditationLoop: loop,
+    meditationRepeat: repeatCount,
+    playMeditation,
+    toggleMeditation,
+    seekMeditation,
+    toggleMeditationLoop: toggleLoop,
+    cycleMeditationRepeat: cycleRepeat,
+  } = useAudio();
+  const progress = useMeditationProgress();
   const [dragValue, setDragValue] = useState<number | null>(null);
+
+  // The engine plays one meditation app-wide; this screen only reflects it when it's the one opened here.
+  const active = !!session && meditation?.session.id === session.id;
+  const loading = active && meditation.loading;
+  const error = active && meditation.error;
+  const playing = active && progress.playing;
+  const buffering = active && progress.buffering;
+  const currentTime = active ? progress.currentTime : 0;
+
+  const togglePlay = () => {
+    if (active) toggleMeditation();
+    else if (session) playMeditation(session);
+  };
+  const seekTo = (seconds: number) => {
+    if (active) seekMeditation(seconds);
+  };
+  const skip = (delta: number) => seekTo(currentTime + delta);
 
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (!state.playing) {
+    if (!playing) {
       pulse.stopAnimation();
       Animated.timing(pulse, { toValue: 1, duration: 300, useNativeDriver: true }).start();
       return;
@@ -39,12 +66,12 @@ export default function MeditationPlayerScreen({ route, navigation }: RootScreen
     );
     animation.start();
     return () => animation.stop();
-  }, [pulse, state.playing]);
+  }, [pulse, playing]);
 
   if (!session) return null;
 
-  const position = dragValue ?? state.currentTime;
-  const duration = state.duration || session.duration;
+  const position = dragValue ?? currentTime;
+  const duration = (active && progress.duration) || session.duration;
 
   return (
     <ScreenBackground>
@@ -61,11 +88,11 @@ export default function MeditationPlayerScreen({ route, navigation }: RootScreen
 
         <View style={styles.statusRow}>
           {error ? (
-            <TouchableOpacity onPress={() => load(true)} style={styles.retry} activeOpacity={0.8}>
+            <TouchableOpacity onPress={togglePlay} style={styles.retry} activeOpacity={0.8}>
               <Text style={styles.errorText}>{t('loadFailed')}</Text>
               <Text style={styles.retryText}>{t('retry')}</Text>
             </TouchableOpacity>
-          ) : loading || state.buffering ? (
+          ) : loading || buffering ? (
             <Text style={styles.statusText}>{t('loading')}</Text>
           ) : null}
         </View>
@@ -75,7 +102,7 @@ export default function MeditationPlayerScreen({ route, navigation }: RootScreen
           minimumValue={0}
           maximumValue={Math.max(duration, 1)}
           value={position}
-          disabled={loading || error}
+          disabled={!active || loading || error}
           onValueChange={setDragValue}
           onSlidingComplete={(v) => {
             seekTo(v);
@@ -105,7 +132,7 @@ export default function MeditationPlayerScreen({ route, navigation }: RootScreen
           <TouchableOpacity style={styles.playBtn} onPress={togglePlay} disabled={loading} activeOpacity={0.85}>
             {loading ? (
               <ActivityIndicator color={colors.textOnAccent} />
-            ) : state.playing ? (
+            ) : playing ? (
               <Pause size={28} color={colors.textOnAccent} />
             ) : (
               <Play size={28} color={colors.textOnAccent} />

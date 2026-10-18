@@ -21,6 +21,7 @@ import { validateQWeather } from '../../services/weather/qweather';
 import ScreenBackground from '../../components/ScreenBackground';
 import GlassCard from '../../components/GlassCard';
 import { colors, radii, fontSize, shadow } from '../../theme';
+import { useMiniPlayerInset } from '../../hooks/useMiniPlayerInset';
 
 const QWEATHER_CONSOLE_URL = 'https://console.qweather.com/';
 
@@ -29,6 +30,7 @@ type TestResult = { ok: true } | { ok: false; reason: string } | null;
 
 export default function WeatherSettingsScreen({ navigation }: RootScreenProps<'WeatherSettings'>) {
   const insets = useSafeAreaInsets();
+  const miniPlayerInset = useMiniPlayerInset();
   const { t } = useTranslation('weather');
   const { qweather, saveQWeather, clearQWeather } = useWeather();
   const [choice, setChoice] = useState<SourceChoice>(qweather ? 'qweather' : 'default');
@@ -103,7 +105,7 @@ export default function WeatherSettingsScreen({ navigation }: RootScreenProps<'W
         <ScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 + miniPlayerInset }]}
         >
           <GlassCard style={styles.group}>
             {renderOption('default', t('source_default'), selectDefault)}

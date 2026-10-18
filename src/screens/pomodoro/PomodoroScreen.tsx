@@ -11,6 +11,7 @@ import PomodoroSettingsSheet from '../../components/pomodoro/PomodoroSettingsShe
 import { POMODORO_MAX_MINUTES, POMODORO_MIN_MINUTES, usePomodoro } from '../../context/PomodoroContext';
 import { RootScreenProps } from '../../navigation';
 import { colors, fontSize, radii, shadow } from '../../theme';
+import { useMiniPlayerInset } from '../../hooks/useMiniPlayerInset';
 
 const BREAK_COLOR = '#5E8F80';
 const RING_SIZE = 260;
@@ -27,6 +28,7 @@ const formatMs = (ms: number) => {
 
 export default function PomodoroScreen({ navigation }: RootScreenProps<'Pomodoro'>) {
   const insets = useSafeAreaInsets();
+  const miniPlayerInset = useMiniPlayerInset();
   const { t } = useTranslation('pomodoro');
   const {
     phase,
@@ -94,7 +96,7 @@ export default function PomodoroScreen({ navigation }: RootScreenProps<'Pomodoro
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
+      <View style={[styles.content, { paddingBottom: insets.bottom + 24 + miniPlayerInset }]}>
         <Text style={[styles.today, isBreak && styles.hidden]}>
           {t('todayCompleted', { count: completedToday })}
         </Text>

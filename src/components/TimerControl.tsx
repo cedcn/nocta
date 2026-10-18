@@ -11,7 +11,7 @@ const CUSTOM_MIN = 1;
 const CUSTOM_MAX = 240;
 const CUSTOM_DEFAULT = 90;
 
-const formatTime = (seconds: number) => {
+export const formatTime = (seconds: number) => {
   const hours = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
@@ -19,7 +19,8 @@ const formatTime = (seconds: number) => {
   return hours ? `${hours}:${mmss}` : mmss;
 };
 
-export default function TimerControl() {
+// `embedded` drops the card chrome so the control can sit inside another panel.
+export default function TimerControl({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation();
   const { timer, timerRemaining, setTimer, extendTimer } = useAudio();
   const [customOpen, setCustomOpen] = useState(false);
@@ -32,8 +33,8 @@ export default function TimerControl() {
     setCustomOpen(false);
   };
 
-  return (
-    <GlassCard style={styles.card}>
+  const content = (
+    <>
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Moon size={18} color={colors.textPrimary} />
@@ -94,8 +95,10 @@ export default function TimerControl() {
           </GlassCard>
         </View>
       </Modal>
-    </GlassCard>
+    </>
   );
+
+  return embedded ? <View>{content}</View> : <GlassCard style={styles.card}>{content}</GlassCard>;
 }
 
 const styles = StyleSheet.create({

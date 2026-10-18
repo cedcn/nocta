@@ -9,9 +9,11 @@ import { RootScreenProps } from '../../navigation';
 import ScreenBackground from '../../components/ScreenBackground';
 import BackBar from '../../components/breathing/BackBar';
 import { colors, radii, fontSize, shadow } from '../../theme';
+import { useMiniPlayerInset } from '../../hooks/useMiniPlayerInset';
 
 export default function MeditationListScreen({ route, navigation }: RootScreenProps<'MeditationList'>) {
   const insets = useSafeAreaInsets();
+  const miniPlayerInset = useMiniPlayerInset();
   const { t } = useTranslation('meditation');
   const localizedName = useLocalizedName();
   const { categoryId } = route.params;
@@ -24,7 +26,7 @@ export default function MeditationListScreen({ route, navigation }: RootScreenPr
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 + miniPlayerInset }]}
       >
         <Text style={styles.subtitle}>{t(`subtitles.${categoryId}`, { defaultValue: '' })}</Text>
         <Text style={styles.count}>{t('sessionsCount', { count: sessions.length })}</Text>

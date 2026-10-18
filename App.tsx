@@ -1,5 +1,5 @@
 import './src/i18n';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { DarkTheme, NavigationContainer, Theme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -22,13 +22,17 @@ import PomodoroScreen from './src/screens/pomodoro/PomodoroScreen';
 import BigClockScreen from './src/screens/clock/BigClockScreen';
 import WeatherSettingsScreen from './src/screens/weather/WeatherSettingsScreen';
 import TabBar from './src/components/TabBar';
-import { HomeStackParamList, RootStackParamList } from './src/navigation';
+import MiniPlayer, { MiniPlayerPlacement } from './src/components/MiniPlayer';
+import { HomeStackParamList, navigationRef, RootStackParamList } from './src/navigation';
 import { colors } from './src/theme';
 
 const navigationTheme: Theme = {
   ...DarkTheme,
   colors: { ...DarkTheme.colors, background: colors.gradientTop, card: colors.gradientTop },
 };
+
+// Full-screen experiences that already show their own playback state.
+const MINI_PLAYER_HIDDEN_ROUTES = ['BigClock', 'MeditationPlayer'];
 
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
@@ -55,8 +59,19 @@ function MainTabs() {
 }
 
 export default function App() {
+  const [miniPlayerPlacement, setMiniPlayerPlacement] = useState<MiniPlayerPlacement>('tabs');
+
   useEffect(() => {
     refreshManifest();
+  }, []);
+
+  const syncMiniPlayer = useCallback(() => {
+    const leaf = navigationRef.getCurrentRoute()?.name;
+    const root = navigationRef.getRootState();
+    const top = root?.routes[root.index]?.name;
+    setMiniPlayerPlacement(
+      leaf && MINI_PLAYER_HIDDEN_ROUTES.includes(leaf) ? 'hidden' : top === 'MainTabs' ? 'tabs' : 'stack',
+    );
   }, []);
 
   return (
@@ -66,7 +81,12 @@ export default function App() {
           <PomodoroProvider>
             <WeatherProvider>
               <StatusBar style="light" />
-              <NavigationContainer theme={navigationTheme}>
+              <NavigationContainer
+                ref={navigationRef}
+                theme={navigationTheme}
+                onReady={syncMiniPlayer}
+                onStateChange={syncMiniPlayer}
+              >
                 <RootStack.Navigator screenOptions={{ headerShown: false, orientation: 'portrait' }}>
                   <RootStack.Screen name="MainTabs" component={MainTabs} />
                   <RootStack.Screen name="BreathingDetail" component={BreathingDetailScreen} />
@@ -80,6 +100,7 @@ export default function App() {
                   />
                   <RootStack.Screen name="WeatherSettings" component={WeatherSettingsScreen} />
                 </RootStack.Navigator>
+                <MiniPlayer placement={miniPlayerPlacement} />
               </NavigationContainer>
             </WeatherProvider>
           </PomodoroProvider>

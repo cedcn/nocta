@@ -10,13 +10,14 @@ import ScreenBackground from '../components/ScreenBackground';
 import SoundRow from '../components/SoundRow';
 import PresetBar from '../components/PresetBar';
 import TimerControl from '../components/TimerControl';
-import FloatingPlayButton from '../components/FloatingPlayButton';
 import { colors, radii, fontSize } from '../theme';
+import { useMiniPlayerInset } from '../hooks/useMiniPlayerInset';
 
 export default function MixerScreen() {
   const [selectedCategory, setSelectedCategory] = useState('nature');
   const [query, setQuery] = useState('');
   const insets = useSafeAreaInsets();
+  const miniPlayerInset = useMiniPlayerInset();
   const { t } = useTranslation();
   const localizedName = useLocalizedName();
   useSoundsManifest();
@@ -43,7 +44,7 @@ export default function MixerScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 110 + miniPlayerInset }}
       >
         <TimerControl />
         <PresetBar />
@@ -91,7 +92,6 @@ export default function MixerScreen() {
         </View>
       </ScrollView>
 
-      {playingSounds.length > 0 && <FloatingPlayButton />}
     </ScreenBackground>
   );
 }

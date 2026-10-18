@@ -14,6 +14,7 @@ import SoundChip from '../components/SoundChip';
 import WeatherCard from '../components/weather/WeatherCard';
 import { colors, radii, fontSize, shadow, getCategoryStyle } from '../theme';
 import { HomeMainProps, useRootNavigation } from '../navigation';
+import { useMiniPlayerInset } from '../hooks/useMiniPlayerInset';
 
 // Shown on the hero card for first-time users who have no previous mix yet.
 const FEATURED_CATEGORY = 'rain';
@@ -26,11 +27,23 @@ const greetingFor = (hour: number) => {
 
 export default function HomeScreen({ navigation }: HomeMainProps) {
   const insets = useSafeAreaInsets();
+  const miniPlayerInset = useMiniPlayerInset();
   const { t } = useTranslation();
   const localizedName = useLocalizedName();
   const rootNavigation = useRootNavigation();
-  const { playingSounds, isPaused, togglePause, toggleSound, playMix, lastMix, favorites, recents, timer, timerRemaining } =
-    useAudio();
+  const {
+    playingSounds,
+    mixTitle,
+    isPaused,
+    togglePause,
+    toggleSound,
+    playMix,
+    lastMix,
+    favorites,
+    recents,
+    timer,
+    timerRemaining,
+  } = useAudio();
   useSoundsManifest();
   const categories = getAllCategories();
   const greeting = greetingFor(new Date().getHours());
@@ -49,7 +62,7 @@ export default function HomeScreen({ navigation }: HomeMainProps) {
     if (playingSounds.length > 0) {
       return {
         label: t('player.playingTitle', { count: playingSounds.length }),
-        title: joinNames(resolveSounds(playingSounds.map((p) => p.id))),
+        title: mixTitle,
         category: getSoundById(playingSounds[0].id)?.category ?? FEATURED_CATEGORY,
         active: !isPaused,
         resume: false,
@@ -100,7 +113,7 @@ export default function HomeScreen({ navigation }: HomeMainProps) {
     <ScreenBackground>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 110 }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 110 + miniPlayerInset }]}
       >
         <View style={styles.topBar}>
           <View style={styles.greetingPill}>

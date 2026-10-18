@@ -16,6 +16,7 @@ import GlassCard from '../components/GlassCard';
 import ThemedSwitch from '../components/ThemedSwitch';
 import WeatherSettingsSection from '../components/weather/WeatherSettingsSection';
 import { colors, fontSize, radii } from '../theme';
+import { useMiniPlayerInset } from '../hooks/useMiniPlayerInset';
 
 const GITHUB_URL = 'https://github.com/Tosencen/XMSLEEP';
 const METEOCONS_URL = 'https://github.com/basmilius/meteocons';
@@ -31,6 +32,7 @@ interface Choice<T> {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const miniPlayerInset = useMiniPlayerInset();
   const { t } = useTranslation();
   const {
     stopAll,
@@ -165,7 +167,7 @@ export default function SettingsScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 + miniPlayerInset }]}
       >
         <Text style={styles.sectionTitle}>{t('settings.audio')}</Text>
         <GlassCard style={styles.group}>

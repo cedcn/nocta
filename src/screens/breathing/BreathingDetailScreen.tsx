@@ -14,6 +14,7 @@ import BackBar from '../../components/breathing/BackBar';
 import DurationPickerModal from '../../components/breathing/DurationPickerModal';
 import BreathingTutorialModal from '../../components/breathing/BreathingTutorialModal';
 import { colors, radii, fontSize, shadow } from '../../theme';
+import { useMiniPlayerInset } from '../../hooks/useMiniPlayerInset';
 
 const CIRCLE_SIZE = 260;
 const MIN_SCALE = 0.5;
@@ -32,6 +33,7 @@ const formatClock = (seconds: number) =>
 
 export default function BreathingDetailScreen({ route, navigation }: RootScreenProps<'BreathingDetail'>) {
   const insets = useSafeAreaInsets();
+  const miniPlayerInset = useMiniPlayerInset();
   const { t } = useTranslation('breathing');
   const { pauseAll, resumeAll } = useAudio();
   const method = getBreathingMethod(route.params.methodId) ?? BREATHING_METHODS[0];
@@ -148,7 +150,7 @@ export default function BreathingDetailScreen({ route, navigation }: RootScreenP
         }
       />
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 + miniPlayerInset }]}>
         <Text style={styles.subtitle}>{t(`methods.${method.id}.subtitle`)}</Text>
 
         <View style={styles.countRow}>

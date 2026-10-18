@@ -6,6 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { colors, radii, shadow, fontSize } from '../theme';
 
+// Bar height above the safe-area padding: 44 icon + 2×10 padding + 2×1 border.
+export const TAB_BAR_HEIGHT = 66;
+
 const ICONS: Record<string, LucideIcon> = {
   Home,
   Mixer: Music,

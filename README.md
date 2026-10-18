@@ -18,17 +18,18 @@ Not ported (by choice): Bilibili radio, local audio library, sound diary, daily-
 ### 🎵 Sounds
 - **113 white-noise sounds** in 8 categories. The manifest is fetched from jsDelivr (raw GitHub as fallback) on launch and cached, with a bundled copy as the offline fallback.
 - **Offline playback**: each sound is downloaded once (jsDelivr first, raw GitHub as fallback) and then played from local storage. Favorites are downloaded as soon as they are added, and Settings can download every favorite and preset sound in one go. Rows show loading and retry states, and the cache can be cleared in Settings.
-- **Multi-sound mixing** with per-sound and master volume, saved between sessions. The now-playing panel can pause, remove sounds and save the mix as a preset.
+- **Multi-sound mixing** with per-sound and master volume, saved between sessions.
+- **One player everywhere**: white noise and meditation share a single playback engine. A mini player sits on every screen (except Big Clock and the meditation player) with play/pause, one-tap stop and the sleep timer; it expands into a panel to adjust volumes, remove sounds, save the mix as a preset or jump back to the meditation.
 - **Search, favorites and recently played** sounds; Home offers to continue the last mix.
 - **Dynamic presets**: 3–10 presets, each holding up to 10 sounds, with three built-in mixes on first launch. You can create, rename and delete them.
-- **Sleep timer** (15/30/60/120 min or custom, +5 min to extend) with a configurable fade-out (5 s–5 min) that ends exactly when the timer does. It is based on absolute time, so it stays accurate in the background, and the remaining time shows on the lock screen.
+- **Sleep timer** (15/30/60/120 min or custom, +5 min to extend), available from the mini player on any screen and applied to meditation too, with a configurable fade-out (5 s–5 min) that ends exactly when the timer does. It is based on absolute time, so it stays accurate in the background, and the remaining time shows on the lock screen.
 - **Auto countdown**: optionally starts the timer whenever sounds start playing. Switching mixes keeps a running timer.
 - **Play alongside other apps**: optional; keeps music or podcasts playing, at the cost of lock screen controls.
-- Breathing and meditation pause the mix and resume it when you leave; Pomodoro alerts play over it.
+- Meditation and white noise are exclusive: starting a meditation pauses the mix and stopping it resumes the mix, while picking a sound ends the meditation. Breathing pauses whichever is playing and resumes it afterwards; Pomodoro alerts play over it.
 
 ### 🌬️ Breathing & meditation
 - Four guided breathing methods (4-7-8, box, belly, 4-2-6) with an animated guide and inhale/exhale cues.
-- 40 guided meditation sessions in 4 categories, streamed from Bilibili.
+- 40 guided meditation sessions in 4 categories, streamed from Bilibili. Playback continues after leaving the player.
 
 ### 🍅 Focus
 - **Pomodoro timer**: focus and break phases, a ringtone and vibration when a phase ends, and a count of today's completed sessions. It keeps running in the background and sends a notification.
